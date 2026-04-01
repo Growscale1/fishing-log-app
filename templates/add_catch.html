@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Add Catch</h1>
+<div class="card">
+    <form method="POST" enctype="multipart/form-data">
+        <label>Photo</label>
+        <input type="file" name="photo" accept="image/*">
+
+        <label>Catch Time</label>
+        <input type="datetime-local" name="timestamp">
+
+        <label>Species</label>
+        <input name="species" required>
+
+        <label>Lure</label>
+        <input name="lure">
+
+        <label>Technique</label>
+        <input name="technique">
+
+        <label>Location</label>
+        <input name="location">
+
+        <label>Weight (lbs)</label>
+        <input name="weight">
+
+        <label>Length</label>
+        <input name="length">
+
+        <label>Wind</label>
+        <input name="wind">
+
+        <label>Temperature</label>
+        <input name="temp">
+
+        <label>Notes</label>
+        <textarea name="notes" rows="4"></textarea>
+
+        <button type="submit">Save Catch</button>
+    </form>
+</div>
+{% endblock %}

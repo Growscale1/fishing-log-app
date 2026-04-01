@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Insights</h1>
+
+<div class="grid">
+    <div class="card">
+        <p><strong>Best Lure:</strong> {% if data.best_lure %}{{ data.best_lure[0] }} ({{ data.best_lure[1] }} catches){% else %}N/A{% endif %}</p>
+    </div>
+    <div class="card">
+        <p><strong>Best Location:</strong> {% if data.best_location %}{{ data.best_location[0] }} ({{ data.best_location[1] }} catches){% else %}N/A{% endif %}</p>
+    </div>
+    <div class="card">
+        <p><strong>Most Caught Species:</strong> {% if data.top_species %}{{ data.top_species[0] }} ({{ data.top_species[1] }} catches){% else %}N/A{% endif %}</p>
+    </div>
+    <div class="card">
+        <p><strong>Best Time Window:</strong> {% if data.best_time_window %}{{ data.best_time_window[0] }} ({{ data.best_time_window[1] }} catches){% else %}N/A{% endif %}</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Top 3 Lures</h2>
+    <ul>
+        {% if data.top_lures %}
+            {% for name, count in data.top_lures %}
+                <li>{{ name }}: {{ count }}</li>
+            {% endfor %}
+        {% else %}
+            <li>N/A</li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Top 3 Locations</h2>
+    <ul>
+        {% if data.top_locations %}
+            {% for name, count in data.top_locations %}
+                <li>{{ name }}: {{ count }}</li>
+            {% endfor %}
+        {% else %}
+            <li>N/A</li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Top 3 Species</h2>
+    <ul>
+        {% if data.top_species_list %}
+            {% for name, count in data.top_species_list %}
+                <li>{{ name }}: {{ count }}</li>
+            {% endfor %}
+        {% else %}
+            <li>N/A</li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Top Lure + Location Combos</h2>
+    <ul>
+        {% if data.top_combos %}
+            {% for name, count in data.top_combos %}
+                <li>{{ name }}: {{ count }}</li>
+            {% endfor %}
+        {% else %}
+            <li>N/A</li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Big Fish Lures (3.0+ lbs)</h2>
+    <ul>
+        {% if data.big_lures %}
+            {% for name, count in data.big_lures %}
+                <li>{{ name }}: {{ count }}</li>
+            {% endfor %}
+        {% else %}
+            <li>N/A</li>
+        {% endif %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Big Fish Locations (3.0+ lbs)</h2>
+    <ul>
+        {% if data.big_locations %}
+            {% for name, count in data.big_locations %}
+                <li>{{ name }}: {{ count }}</li>
+            {% endfor %}
+        {% else %}
+            <li>N/A</li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}

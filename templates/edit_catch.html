@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Edit Catch</h1>
+<div class="card">
+    {% if catch["photo_path"] %}
+        <a href="/uploads/{{ catch['photo_path'] }}" target="_blank">
+            <img src="/uploads/{{ catch['photo_path'] }}" alt="Catch Photo" class="catch-image">
+        </a>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <label>Replace Photo</label>
+        <input type="file" name="photo" accept="image/*">
+
+        <label>Catch Time</label>
+        <input type="datetime-local" name="timestamp" value="{{ timestamp_value }}">
+
+        <label>Species</label>
+        <input name="species" value="{{ catch['species'] or '' }}" required>
+
+        <label>Lure</label>
+        <input name="lure" value="{{ catch['lure'] or '' }}">
+
+        <label>Technique</label>
+        <input name="technique" value="{{ catch['technique'] or '' }}">
+
+        <label>Location</label>
+        <input name="location" value="{{ catch['location'] or '' }}">
+
+        <label>Weight (lbs)</label>
+        <input name="weight" value="{{ catch['weight'] or '' }}">
+
+        <label>Length</label>
+        <input name="length" value="{{ catch['length'] or '' }}">
+
+        <label>Wind</label>
+        <input name="wind" value="{{ catch['wind'] or '' }}">
+
+        <label>Temperature</label>
+        <input name="temp" value="{{ catch['temp'] or '' }}">
+
+        <label>Notes</label>
+        <textarea name="notes" rows="4">{{ catch['notes'] or '' }}</textarea>
+
+        <button type="submit">Update Catch</button>
+    </form>
+</div>
+{% endblock %}

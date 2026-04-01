@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Fishing Log</h1>
+<p class="muted">Your catches, newest first.</p>
+
+<div class="card">
+    <form method="GET">
+        <label>Search</label>
+        <input name="search" value="{{ search }}" placeholder="Search species, lure, notes, technique...">
+
+        <label>Species Filter</label>
+        <select name="species">
+            <option value="">All Species</option>
+            {% for value in species_options %}
+                <option value="{{ value }}" {% if value == species %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Lure Filter</label>
+        <select name="lure">
+            <option value="">All Lures</option>
+            {% for value in lure_options %}
+                <option value="{{ value }}" {% if value == lure %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Location Filter</label>
+        <select name="location">
+            <option value="">All Locations</option>
+            {% for value in location_options %}
+                <option value="{{ value }}" {% if value == location %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Apply Filters</button>
+        <a href="/" style="margin-left: 10px;">Clear</a>
+    </form>
+</div>
+
+{% if not catches %}
+    <div class="card">
+        <p>No catches found.</p>
+    </div>
+{% else %}
+    {% for catch in catches %}
+        <div class="card">
+            {% if catch["photo_path"] %}
+                <a href="/uploads/{{ catch['photo_path'] }}" target="_blank">
+                    <img src="/uploads/{{ catch['photo_path'] }}" alt="Catch Photo" class="catch-image">
+                </a>
+            {% endif %}
+
+            <h2>{{ catch["species"] or "Unknown Species" }}</h2>
+            <p><strong>Lure:</strong> {{ catch["lure"] or "N/A" }}</p>
+            <p><strong>Technique:</strong> {{ catch["technique"] or "N/A" }}</p>
+            <p><strong>Location:</strong> {{ catch["location"] or "N/A" }}</p>
+            <p><strong>Weight:</strong> {{ catch["weight"] or "N/A" }}</p>
+            <p><strong>Length:</strong> {{ catch["length"] or "N/A" }}</p>
+            <p><strong>Timestamp:</strong> {{ catch["timestamp"] or "N/A" }}</p>
+            <p><strong>Notes:</strong> {{ catch["notes"] or "N/A" }}</p>
+
+            <div class="actions">
+                <a href="/edit/{{ catch['id'] }}">Edit Catch</a>
+
+                <form method="POST" action="/delete/{{ catch['id'] }}" class="inline-form" onsubmit="return confirm('Delete this catch?');">
+                    <button type="submit" class="delete-button">Delete Catch</button>
+                </form>
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}
