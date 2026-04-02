@@ -1,12 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 import os
 import uuid
 import json
 import sqlite3
 from datetime import datetime
 from collections import Counter
+import base64
+from openai import OpenAI
 
 app = Flask(__name__)
+client = OpenAI()
 app.secret_key = "supersecretkey"
 
 DB_FILE = "fishing_log.db"
@@ -395,55 +398,56 @@ def toggle_favorite(catch_id):
     flash("Favorite updated.")
     return redirect(url_for("home"))
 
-@app.route("/add", methods=["GET", "POST"])
-def add_catch():
-    if request.method == "POST":
-        photo = request.files.get("photo")
-        saved_filename = ""
+def detect_species_from_image(image_path):
+    try:
+        ext = os.path.splitext(image_path)[1].lower()
 
-        if photo and photo.filename:
-            ext = os.path.splitext(photo.filename)[1].lower()
-            saved_filename = f"{uuid.uuid4().hex}{ext}"
-            photo.save(os.path.join(UPLOAD_FOLDER, saved_filename))
-
-        manual_timestamp = request.form.get("timestamp", "").strip()
-        if not manual_timestamp:
-            manual_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            try:
-                manual_timestamp = datetime.strptime(
-                    manual_timestamp,
-                    "%Y-%m-%dT%H:%M"
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                manual_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        new_catch = {
-            "timestamp": manual_timestamp,
-            "species": request.form.get("species", "").strip(),
-            "lure": request.form.get("lure", "").strip(),
-            "technique": request.form.get("technique", "").strip(),
-            "location": request.form.get("location", "").strip(),
-            "weight": request.form.get("weight", "").strip(),
-            "length": request.form.get("length", "").strip(),
-            "wind": request.form.get("wind", "").strip(),
-            "temp": request.form.get("temp", "").strip(),
-            "notes": request.form.get("notes", "").strip(),
-            "mode": "web",
-            "photo_path": saved_filename,
-            "photo_taken_at": "",
-            "photo_gps_lat": "",
-            "photo_gps_lon": "",
-            "photo_device": "",
-            "metadata_found": 0
+        mime_map = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp"
         }
 
-        insert_catch(new_catch)
-        flash("Catch added successfully")
-        return redirect(url_for("home"))
+        if ext not in mime_map:
+            print(f"AI species detection skipped: unsupported image type {ext}")
+            return None
 
-    return render_template("add_catch.html")
+        mime_type = mime_map[ext]
 
+        with open(image_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+
+        response = client.responses.create(
+            model="gpt-4.1",
+            input=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Identify the fish species in this catch photo. "
+                            "Reply with only the species name. "
+                            "Examples: Largemouth Bass, Smallmouth Bass, Chain Pickerel, Bluegill."
+                        )
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{mime_type};base64,{base64_image}"
+                    }
+                ]
+            }]
+        )
+
+        if hasattr(response, "output_text") and response.output_text:
+            return response.output_text.strip()
+
+        return None
+
+    except Exception as e:
+        print(f"AI species detection failed: {e}")
+        return None
+           
 
 @app.route("/edit/<int:catch_id>", methods=["GET", "POST"])
 def edit_catch(catch_id):
@@ -502,6 +506,69 @@ def edit_catch(catch_id):
         timestamp_value=timestamp_value
     )
 
+@app.route("/add", methods=["GET", "POST"])
+def add_catch():
+    if request.method == "POST":
+        photo = request.files.get("photo")
+        saved_filename = ""
+
+        if photo and photo.filename:
+            ext = os.path.splitext(photo.filename)[1].lower()
+
+            allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+            if ext not in allowed_extensions:
+                flash("Please upload a JPG, JPEG, PNG, or WEBP image.")
+                return redirect(url_for("add_catch"))
+
+            saved_filename = f"{uuid.uuid4().hex}{ext}"
+            saved_path = os.path.join(UPLOAD_FOLDER, saved_filename)
+            photo.save(saved_path)
+        else:
+            saved_path = ""
+
+        manual_timestamp = request.form.get("timestamp", "").strip()
+        if not manual_timestamp:
+            manual_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            try:
+                manual_timestamp = datetime.strptime(
+                    manual_timestamp,
+                    "%Y-%m-%dT%H:%M"
+                ).strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                manual_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        entered_species = request.form.get("species", "").strip()
+        ai_species = detect_species_from_image(saved_path) if saved_path else None
+
+        if not entered_species and ai_species is None:
+            flash("AI species detection is unavailable right now. Enter species manually or add API billing later.")
+
+        new_catch = {
+            "timestamp": manual_timestamp,
+            "species": entered_species or ai_species or "AI unavailable",
+            "lure": request.form.get("lure", "").strip(),
+            "technique": request.form.get("technique", "").strip(),
+            "location": request.form.get("location", "").strip(),
+            "weight": request.form.get("weight", "").strip(),
+            "length": request.form.get("length", "").strip(),
+            "wind": request.form.get("wind", "").strip(),
+            "temp": request.form.get("temp", "").strip(),
+            "notes": request.form.get("notes", "").strip(),
+            "mode": "web",
+            "photo_path": saved_filename,
+            "photo_taken_at": "",
+            "photo_gps_lat": "",
+            "photo_gps_lon": "",
+            "photo_device": "",
+            "metadata_found": 0
+        }
+
+        insert_catch(new_catch)
+        flash("Catch added successfully")
+        return redirect(url_for("home"))
+
+    return render_template("add_catch.html")
 
 @app.route("/delete/<int:catch_id>", methods=["POST"])
 def delete_catch(catch_id):
