@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, url_for, render_template, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, flash
 import os
 import uuid
 import json
@@ -45,13 +45,18 @@ def init_db():
             photo_gps_lat TEXT,
             photo_gps_lon TEXT,
             photo_device TEXT,
-            metadata_found INTEGER
+            metadata_found INTEGER,
+            is_favorite INTEGER DEFAULT 0
         )
     """)
 
+    try:
+        cursor.execute("ALTER TABLE catches ADD COLUMN is_favorite INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
-
 
 def migrate_json_to_sqlite():
     if not os.path.exists(JSON_FILE):
@@ -370,6 +375,25 @@ def home():
         location_options=location_options
     )
 
+@app.route("/toggle_favorite/<int:catch_id>")
+def toggle_favorite(catch_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT is_favorite FROM catches WHERE id = ?", (catch_id,))
+    catch = cursor.fetchone()
+
+    if catch is not None:
+        new_value = 0 if catch["is_favorite"] == 1 else 1
+        cursor.execute(
+            "UPDATE catches SET is_favorite = ? WHERE id = ?",
+            (new_value, catch_id)
+        )
+        conn.commit()
+
+    conn.close()
+    flash("Favorite updated.")
+    return redirect(url_for("home"))
 
 @app.route("/add", methods=["GET", "POST"])
 def add_catch():
@@ -501,4 +525,4 @@ def insights():
 if __name__ == "__main__":
     init_db()
     migrate_json_to_sqlite()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

@@ -51,7 +51,16 @@
                 </a>
             {% endif %}
 
-            <h2>{{ catch["species"] or "Unknown Species" }}</h2>
+            <h2 style="display: flex; align-items: center; justify-content: space-between;">
+                <span>{{ catch["species"] or "Unknown Species" }}</span>
+                <a href="/toggle_favorite/{{ catch['id'] }}" style="text-decoration: none; font-size: 1.4rem;">
+                    {% if catch["is_favorite"] == 1 %}
+                        ⭐
+                    {% else %}
+                        ☆
+                    {% endif %}
+                </a>
+            </h2>
             <p><strong>Lure:</strong> {{ catch["lure"] or "N/A" }}</p>
             <p><strong>Technique:</strong> {{ catch["technique"] or "N/A" }}</p>
             <p><strong>Location:</strong> {{ catch["location"] or "N/A" }}</p>
