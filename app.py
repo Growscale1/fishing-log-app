@@ -871,8 +871,9 @@ def trip_detail(trip_id):
         trip_points=trip_points,
         trip_catches=trip_catches
     )
-    
+
+init_db()
+migrate_json_to_sqlite()
+
 if __name__ == "__main__":
-    init_db()
-    migrate_json_to_sqlite()
     app.run(host="0.0.0.0", port=5001, debug=True)
