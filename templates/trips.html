@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1><i class="fa-solid fa-route"></i> Trips</h1>
+    <p class="muted">Track your fishing routes and view them later.</p>
+    <div class="actions">
+        <a href="{{ url_for('start_trip') }}">
+            <i class="fa-solid fa-play"></i>
+            <span>Start New Trip</span>
+        </a>
+    </div>
+</div>
+
+{% if not trips %}
+    <div class="card">
+        <p>No trips yet.</p>
+    </div>
+{% else %}
+    {% for trip in trips %}
+        <div class="card">
+            <h2>
+                <i class="fa-solid fa-route"></i>
+                {{ trip["name"] or ("Trip #" ~ trip["id"]) }}
+            </h2>
+
+            <p>
+                <i class="fa-solid fa-clock"></i>
+                <strong>Started:</strong> {{ trip["started_at"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-flag-checkered"></i>
+                <strong>Ended:</strong> {{ trip["ended_at"] or "Still active" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-location-dot"></i>
+                <strong>Saved points:</strong> {{ trip["point_count"] }}
+            </p>
+
+            {% if trip["notes"] %}
+                <p>
+                    <i class="fa-solid fa-note-sticky"></i>
+                    <strong>Notes:</strong> {{ trip["notes"] }}
+                </p>
+            {% endif %}
+
+            <div class="actions">
+                {% if not trip["ended_at"] %}
+                    <a href="{{ url_for('live_trip', trip_id=trip['id']) }}">
+                        <i class="fa-solid fa-map"></i>
+                        <span>Resume Live Trip</span>
+                    </a>
+                {% endif %}
+
+                <a href="{{ url_for('trip_detail', trip_id=trip['id']) }}">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    <span>View Trip</span>
+                </a>
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1>
+        <i class="fa-solid fa-satellite-dish"></i>
+        Live Trip: {{ trip["name"] or ("Trip #" ~ trip["id"]) }}
+    </h1>
+    <p class="muted">Your route will draw as your location updates.</p>
+
+    <div class="actions">
+        <button type="button" onclick="startTracking()">
+            <i class="fa-solid fa-location-crosshairs"></i>
+            Start Tracking
+        </button>
+
+        <button type="button" onclick="goToAddCatchDuringTrip()">
+            <i class="fa-solid fa-fish"></i>
+            Add Catch During Trip
+        </button>
+
+        <form method="POST" action="{{ url_for('end_trip', trip_id=trip['id']) }}" class="inline-form">
+            <button type="submit" class="delete-button">
+                <i class="fa-solid fa-stop"></i>
+                End Trip
+            </button>
+        </form>
+    </div>
+
+    <p id="trip-status" class="muted" style="margin-top: 12px;">Tracking not started yet.</p>
+</div>
+
+<div class="card">
+    <div id="live-trip-map" style="width: 100%; height: 70vh; min-height: 420px; border-radius: 12px;"></div>
+</div>
+
+<script>
+let liveTripMap = null;
+let liveTripLine = null;
+let liveTripMarker = null;
+let liveTripWatchId = null;
+let liveTripPoints = [];
+let latestTripLatitude = "";
+let latestTripLongitude = "";
+let lastSavedTripLatitude = null;
+let lastSavedTripLongitude = null;
+const MIN_SAVE_DISTANCE_METERS = 15;
+
+function initLiveTripMap() {
+    if (liveTripMap) {
+        return;
+    }
+
+    liveTripMap = L.map("live-trip-map").setView([41.2, -73.7], 9);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(liveTripMap);
+
+    liveTripLine = L.polyline([], { weight: 4 }).addTo(liveTripMap);
+
+    setTimeout(function () {
+        liveTripMap.invalidateSize();
+    }, 100);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    initLiveTripMap();
+});
+
+function updateTripMap(lat, lon) {
+    liveTripPoints.push([lat, lon]);
+    liveTripLine.setLatLngs(liveTripPoints);
+
+    if (liveTripMarker) {
+        liveTripMap.removeLayer(liveTripMarker);
+    }
+
+    liveTripMarker = L.marker([lat, lon]).addTo(liveTripMap);
+    liveTripMap.setView([lat, lon], 16);
+}
+
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = deg => deg * (Math.PI / 180);
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function sendTripPoint(lat, lon, accuracy) {
+    const formData = new FormData();
+    formData.append("latitude", lat);
+    formData.append("longitude", lon);
+    formData.append("accuracy", accuracy);
+
+    try {
+        await fetch("{{ url_for('save_trip_point', trip_id=trip['id']) }}", {
+            method: "POST",
+            body: formData
+        });
+    } catch (error) {
+        console.error("Failed to save trip point", error);
+    }
+}
+
+function startTracking() {
+    const status = document.getElementById("trip-status");
+
+    if (!navigator.geolocation) {
+        status.textContent = "Geolocation is not supported on this device/browser.";
+        return;
+    }
+
+    if (liveTripWatchId !== null) {
+        status.textContent = "Tracking is already running.";
+        return;
+    }
+
+    status.textContent = "Starting tracking...";
+
+    liveTripWatchId = navigator.geolocation.watchPosition(
+        async function(position) {
+                        const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const accuracy = position.coords.accuracy || 0;
+
+            latestTripLatitude = lat;
+            latestTripLongitude = lon;
+
+            if (lastSavedTripLatitude === null || lastSavedTripLongitude === null) {
+                lastSavedTripLatitude = lat;
+                lastSavedTripLongitude = lon;
+
+                updateTripMap(lat, lon);
+                status.textContent = `Tracking live. Accuracy: ${Math.round(accuracy)} meters`;
+
+                await sendTripPoint(lat, lon, accuracy);
+                return;
+            }
+
+            const movedMeters = getDistanceMeters(
+                lastSavedTripLatitude,
+                lastSavedTripLongitude,
+                lat,
+                lon
+            );
+
+            if (movedMeters < MIN_SAVE_DISTANCE_METERS) {
+                status.textContent = `Tracking live. Accuracy: ${Math.round(accuracy)} meters. Waiting for real movement...`;
+                return;
+            }
+
+            lastSavedTripLatitude = lat;
+            lastSavedTripLongitude = lon;
+
+            updateTripMap(lat, lon);
+            status.textContent = `Tracking live. Accuracy: ${Math.round(accuracy)} meters`;
+
+            await sendTripPoint(lat, lon, accuracy);
+        },
+        function(error) {
+            if (error.code === error.PERMISSION_DENIED) {
+                status.textContent = "Location permission was denied.";
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                status.textContent = "Location information is unavailable.";
+            } else if (error.code === error.TIMEOUT) {
+                status.textContent = "Location request timed out.";
+            } else {
+                status.textContent = "Tracking error.";
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 15000
+        }
+    );
+}
+function goToAddCatchDuringTrip() {
+    const status = document.getElementById("trip-status");
+
+    if (!latestTripLatitude || !latestTripLongitude) {
+        status.textContent = "Start tracking first so the catch can use your current trip location.";
+        return;
+    }
+
+    const targetUrl = `{{ url_for('add_catch_for_trip', trip_id=trip['id']) }}?latitude=${encodeURIComponent(latestTripLatitude)}&longitude=${encodeURIComponent(latestTripLongitude)}`;
+    window.location.href = targetUrl;
+}
+</script>
+{% endblock %}

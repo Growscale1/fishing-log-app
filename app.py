@@ -41,6 +41,7 @@ def init_db():
             length TEXT,
             wind TEXT,
             temp TEXT,
+            cloud_cover TEXT,
             notes TEXT,
             mode TEXT,
             photo_path TEXT,
@@ -49,12 +50,45 @@ def init_db():
             photo_gps_lon TEXT,
             photo_device TEXT,
             metadata_found INTEGER,
-            is_favorite INTEGER DEFAULT 0
+            is_favorite INTEGER DEFAULT 0,
+            trip_id INTEGER
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS trips (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            started_at TEXT,
+            ended_at TEXT,
+            name TEXT,
+            notes TEXT
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS trip_points (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trip_id INTEGER NOT NULL,
+            timestamp TEXT,
+            latitude REAL,
+            longitude REAL,
+            accuracy REAL,
+            FOREIGN KEY (trip_id) REFERENCES trips(id)
         )
     """)
 
     try:
         cursor.execute("ALTER TABLE catches ADD COLUMN is_favorite INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE catches ADD COLUMN cloud_cover TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE catches ADD COLUMN trip_id INTEGER")
     except sqlite3.OperationalError:
         pass
 
@@ -169,9 +203,9 @@ def insert_catch(data):
     cursor.execute("""
         INSERT INTO catches (
             timestamp, species, lure, technique, location, weight, length,
-            wind, temp, notes, mode, photo_path, photo_taken_at,
-            photo_gps_lat, photo_gps_lon, photo_device, metadata_found
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            wind, temp, cloud_cover, notes, mode, photo_path, photo_taken_at,
+            photo_gps_lat, photo_gps_lon, photo_device, metadata_found, trip_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data["timestamp"],
         data["species"],
@@ -182,6 +216,7 @@ def insert_catch(data):
         data["length"],
         data["wind"],
         data["temp"],
+        data["cloud_cover"],
         data["notes"],
         data["mode"],
         data["photo_path"],
@@ -189,35 +224,8 @@ def insert_catch(data):
         data["photo_gps_lat"],
         data["photo_gps_lon"],
         data["photo_device"],
-        data["metadata_found"]
-    ))
-
-    conn.commit()
-    conn.close()
-
-
-def update_catch(catch_id, data):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        UPDATE catches
-        SET timestamp = ?, species = ?, lure = ?, technique = ?, location = ?,
-            weight = ?, length = ?, wind = ?, temp = ?, notes = ?, photo_path = ?
-        WHERE id = ?
-    """, (
-        data["timestamp"],
-        data["species"],
-        data["lure"],
-        data["technique"],
-        data["location"],
-        data["weight"],
-        data["length"],
-        data["wind"],
-        data["temp"],
-        data["notes"],
-        data["photo_path"],
-        catch_id
+        data["metadata_found"],
+        data["trip_id"]
     ))
 
     conn.commit()
@@ -231,6 +239,114 @@ def delete_catch_by_id(catch_id):
     conn.commit()
     conn.close()
 
+def create_trip(name="", notes=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor.execute("""
+        INSERT INTO trips (started_at, ended_at, name, notes)
+        VALUES (?, ?, ?, ?)
+    """, (
+        started_at,
+        "",
+        name,
+        notes
+    ))
+
+    trip_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return trip_id
+
+
+def get_all_trips():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            trips.*,
+            COUNT(trip_points.id) AS point_count
+        FROM trips
+        LEFT JOIN trip_points ON trips.id = trip_points.trip_id
+        GROUP BY trips.id
+        ORDER BY trips.id DESC
+    """)
+    trips = cursor.fetchall()
+    conn.close()
+    return trips
+
+
+def get_trip_by_id(trip_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM trips WHERE id = ?", (trip_id,))
+    trip = cursor.fetchone()
+    conn.close()
+    return trip
+
+
+def add_trip_point(trip_id, latitude, longitude, accuracy):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO trip_points (trip_id, timestamp, latitude, longitude, accuracy)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        trip_id,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        latitude,
+        longitude,
+        accuracy
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def get_trip_points(trip_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT *
+        FROM trip_points
+        WHERE trip_id = ?
+        ORDER BY id ASC
+    """, (trip_id,))
+    points = cursor.fetchall()
+    conn.close()
+    return points
+
+def get_catches_for_trip(trip_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT *
+        FROM catches
+        WHERE trip_id = ?
+        ORDER BY id ASC
+    """, (trip_id,))
+    catches = cursor.fetchall()
+    conn.close()
+    return catches
+
+def end_trip_by_id(trip_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE trips
+        SET ended_at = ?
+        WHERE id = ?
+    """, (
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        trip_id
+    ))
+
+    conn.commit()
+    conn.close()
 
 def clean_value(value):
     if value is None:
@@ -475,7 +591,7 @@ def edit_catch(catch_id):
         else:
             timestamp = catch["timestamp"]
 
-        updated = {
+            updated = {
             "timestamp": timestamp,
             "species": request.form.get("species", "").strip(),
             "lure": request.form.get("lure", "").strip(),
@@ -485,6 +601,7 @@ def edit_catch(catch_id):
             "length": request.form.get("length", "").strip(),
             "wind": request.form.get("wind", "").strip(),
             "temp": request.form.get("temp", "").strip(),
+            "cloud_cover": request.form.get("cloud_cover", "").strip(),
             "notes": request.form.get("notes", "").strip(),
             "photo_path": photo_path
         }
@@ -544,6 +661,8 @@ def add_catch():
         if not entered_species and ai_species is None:
             flash("AI species detection is unavailable right now. Enter species manually or add API billing later.")
 
+        trip_id_raw = request.form.get("trip_id", "").strip()
+
         new_catch = {
             "timestamp": manual_timestamp,
             "species": entered_species or ai_species or "AI unavailable",
@@ -554,14 +673,16 @@ def add_catch():
             "length": request.form.get("length", "").strip(),
             "wind": request.form.get("wind", "").strip(),
             "temp": request.form.get("temp", "").strip(),
+            "cloud_cover": request.form.get("cloud_cover", "").strip(),
             "notes": request.form.get("notes", "").strip(),
             "mode": "web",
             "photo_path": saved_filename,
             "photo_taken_at": "",
-            "photo_gps_lat": "",
-            "photo_gps_lon": "",
+            "photo_gps_lat": request.form.get("photo_gps_lat", "").strip(),
+            "photo_gps_lon": request.form.get("photo_gps_lon", "").strip(),
             "photo_device": "",
-            "metadata_found": 0
+            "metadata_found": 1 if request.form.get("photo_gps_lat", "").strip() and request.form.get("photo_gps_lon", "").strip() else 0,
+            "trip_id": int(trip_id_raw) if trip_id_raw.isdigit() else None
         }
 
         insert_catch(new_catch)
@@ -588,7 +709,169 @@ def insights():
 
     return render_template("insights.html", data=data)
 
+@app.route("/map")
+def map_page():
+    catches = get_all_catches()
+    map_catches = []
 
+    for catch in catches:
+        lat_raw = clean_value(catch["photo_gps_lat"])
+        lon_raw = clean_value(catch["photo_gps_lon"])
+
+        if not lat_raw or not lon_raw:
+            continue
+
+        try:
+            lat = float(lat_raw)
+            lon = float(lon_raw)
+        except ValueError:
+            continue
+
+        map_catches.append({
+            "id": catch["id"],
+            "species": clean_value(catch["species"]) or "Unknown Species",
+            "timestamp": clean_value(catch["timestamp"]) or "",
+            "location": clean_value(catch["location"]) or "",
+            "lure": clean_value(catch["lure"]) or "",
+            "notes": clean_value(catch["notes"]) or "",
+            "photo_path": clean_value(catch["photo_path"]) or "",
+            "latitude": lat,
+            "longitude": lon,
+            "is_favorite": catch["is_favorite"]
+        })
+
+    return render_template("map.html", map_catches=map_catches)
+@app.route("/trips")
+def trips():
+    all_trips = get_all_trips()
+    return render_template("trips.html", trips=all_trips)
+
+
+@app.route("/trips/start", methods=["GET", "POST"])
+def start_trip():
+    if request.method == "POST":
+        trip_name = request.form.get("name", "").strip()
+        trip_notes = request.form.get("notes", "").strip()
+        trip_id = create_trip(name=trip_name, notes=trip_notes)
+        flash("Trip started.")
+        return redirect(url_for("live_trip", trip_id=trip_id))
+
+    return render_template("start_trip.html")
+
+
+@app.route("/trips/<int:trip_id>/live")
+def live_trip(trip_id):
+    trip = get_trip_by_id(trip_id)
+
+    if not trip:
+        return "Trip not found", 404
+
+    return render_template("trip_live.html", trip=trip)
+
+@app.route("/trips/<int:trip_id>/add-catch", methods=["GET"])
+def add_catch_for_trip(trip_id):
+    trip = get_trip_by_id(trip_id)
+
+    if not trip:
+        return "Trip not found", 404
+
+    latitude = request.args.get("latitude", "").strip()
+    longitude = request.args.get("longitude", "").strip()
+
+    return render_template(
+        "add_catch_trip.html",
+        trip=trip,
+        latitude=latitude,
+        longitude=longitude
+    )
+
+@app.route("/trips/<int:trip_id>/point", methods=["POST"])
+def save_trip_point(trip_id):
+    trip = get_trip_by_id(trip_id)
+
+    if not trip:
+        return {"success": False, "error": "Trip not found"}, 404
+
+    latitude_raw = request.form.get("latitude", "").strip()
+    longitude_raw = request.form.get("longitude", "").strip()
+    accuracy_raw = request.form.get("accuracy", "").strip()
+
+    try:
+        latitude = float(latitude_raw)
+        longitude = float(longitude_raw)
+        accuracy = float(accuracy_raw) if accuracy_raw else 0.0
+    except ValueError:
+        return {"success": False, "error": "Invalid coordinates"}, 400
+
+    add_trip_point(trip_id, latitude, longitude, accuracy)
+    return {"success": True}
+
+
+@app.route("/trips/<int:trip_id>/end", methods=["POST"])
+def end_trip(trip_id):
+    trip = get_trip_by_id(trip_id)
+
+    if not trip:
+        return "Trip not found", 404
+
+    end_trip_by_id(trip_id)
+    flash("Trip ended.")
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>")
+def trip_detail(trip_id):
+    trip = get_trip_by_id(trip_id)
+
+    if not trip:
+        return "Trip not found", 404
+
+    raw_points = get_trip_points(trip_id)
+    trip_points = []
+
+    for point in raw_points:
+        trip_points.append({
+            "latitude": point["latitude"],
+            "longitude": point["longitude"],
+            "timestamp": point["timestamp"],
+            "accuracy": point["accuracy"]
+        })
+
+    raw_catches = get_catches_for_trip(trip_id)
+    trip_catches = []
+
+    for catch in raw_catches:
+        lat_raw = clean_value(catch["photo_gps_lat"])
+        lon_raw = clean_value(catch["photo_gps_lon"])
+
+        if not lat_raw or not lon_raw:
+            continue
+
+        try:
+            lat = float(lat_raw)
+            lon = float(lon_raw)
+        except ValueError:
+            continue
+
+        trip_catches.append({
+            "id": catch["id"],
+            "species": clean_value(catch["species"]) or "Unknown Species",
+            "timestamp": clean_value(catch["timestamp"]) or "",
+            "location": clean_value(catch["location"]) or "",
+            "lure": clean_value(catch["lure"]) or "",
+            "notes": clean_value(catch["notes"]) or "",
+            "photo_path": clean_value(catch["photo_path"]) or "",
+            "latitude": lat,
+            "longitude": lon
+        })
+
+    return render_template(
+        "trip_detail.html",
+        trip=trip,
+        trip_points=trip_points,
+        trip_catches=trip_catches
+    )
+    
 if __name__ == "__main__":
     init_db()
     migrate_json_to_sqlite()

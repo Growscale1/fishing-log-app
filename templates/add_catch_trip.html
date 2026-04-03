@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1><i class="fa-solid fa-plus"></i> Add Catch</h1>
+<h1><i class="fa-solid fa-fish"></i> Add Catch During Trip</h1>
+
 <div class="card">
-    <form method="POST" enctype="multipart/form-data">
+    <p class="muted">
+        Trip: {{ trip["name"] or ("Trip #" ~ trip["id"]) }}
+    </p>
+
+    <form method="POST" action="{{ url_for('add_catch') }}" enctype="multipart/form-data">
+        <input type="hidden" name="trip_id" value="{{ trip['id'] }}">
+        <input type="hidden" name="photo_gps_lat" id="photo_gps_lat" value="{{ latitude }}">
+        <input type="hidden" name="photo_gps_lon" id="photo_gps_lon" value="{{ longitude }}">
+
         <label>Photo</label>
         <input type="file" name="photo" accept="image/*">
 
@@ -22,9 +31,6 @@
         <label>Location</label>
         <input name="location" id="location">
 
-        <input type="hidden" name="photo_gps_lat" id="photo_gps_lat">
-        <input type="hidden" name="photo_gps_lon" id="photo_gps_lon">
-
         <div class="actions" style="margin-top: 0; margin-bottom: 14px;">
             <button type="button" onclick="useMyLocation()">
                 <i class="fa-solid fa-location-crosshairs"></i>
@@ -34,11 +40,11 @@
         </div>
 
         <div
-            id="add-catch-map"
+            id="trip-catch-map"
             style="width: 100%; height: 260px; border-radius: 12px; margin-bottom: 14px;"
         ></div>
 
-                <label>Weight (lbs)</label>
+        <label>Weight (lbs)</label>
         <input name="weight">
 
         <label>Length</label>
@@ -64,44 +70,61 @@
         <label>Notes</label>
         <textarea name="notes" rows="4"></textarea>
 
-        <button type="submit">Save Catch</button>
+        <div class="actions">
+            <button type="submit">
+                <i class="fa-solid fa-floppy-disk"></i>
+                Save Trip Catch
+            </button>
+
+            <a href="{{ url_for('live_trip', trip_id=trip['id']) }}">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Back to Live Trip</span>
+            </a>
+        </div>
     </form>
 </div>
 
 <script>
-let addCatchMap = null;
-let addCatchMarker = null;
+let tripCatchMap = null;
+let tripCatchMarker = null;
 
-function initAddCatchMap() {
-    if (addCatchMap) {
+function initTripCatchMap() {
+    if (tripCatchMap) {
         return;
     }
 
-    addCatchMap = L.map("add-catch-map").setView([41.2, -73.7], 9);
+    tripCatchMap = L.map("trip-catch-map").setView([41.2, -73.7], 9);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(addCatchMap);
+    }).addTo(tripCatchMap);
 }
 
-function updateAddCatchMap(lat, lon) {
-    initAddCatchMap();
+function updateTripCatchMap(lat, lon) {
+    initTripCatchMap();
 
-    if (addCatchMarker) {
-        addCatchMap.removeLayer(addCatchMarker);
+    if (tripCatchMarker) {
+        tripCatchMap.removeLayer(tripCatchMarker);
     }
 
-    addCatchMarker = L.marker([lat, lon]).addTo(addCatchMap);
-    addCatchMap.setView([lat, lon], 15);
+    tripCatchMarker = L.marker([lat, lon]).addTo(tripCatchMap);
+    tripCatchMap.setView([lat, lon], 15);
 
     setTimeout(function () {
-        addCatchMap.invalidateSize();
+        tripCatchMap.invalidateSize();
     }, 100);
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    initAddCatchMap();
+    initTripCatchMap();
+
+    const latValue = document.getElementById("photo_gps_lat").value;
+    const lonValue = document.getElementById("photo_gps_lon").value;
+
+    if (latValue && lonValue) {
+        updateTripCatchMap(parseFloat(latValue), parseFloat(lonValue));
+    }
 });
 
 function useMyLocation() {
@@ -124,7 +147,7 @@ function useMyLocation() {
             latInput.value = lat;
             lonInput.value = lon;
 
-            updateAddCatchMap(lat, lon);
+            updateTripCatchMap(lat, lon);
             status.textContent = "Location captured.";
         },
         function(error) {
@@ -172,7 +195,7 @@ function getCurrentCoordinates() {
                 document.getElementById("photo_gps_lat").value = lat;
                 document.getElementById("photo_gps_lon").value = lon;
 
-                updateAddCatchMap(lat, lon);
+                updateTripCatchMap(lat, lon);
 
                 resolve({
                     latitude: lat,

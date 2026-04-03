@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Fishing Log</h1>
+<h1><i class="fa-solid fa-fish"></i> Fishing Log</h1>
 <p class="muted">Your catches, newest first.</p>
 
 <div class="card">
@@ -44,15 +44,18 @@
     </div>
 {% else %}
     {% for catch in catches %}
-        <div class="card">
+                <div class="card">
             {% if catch["photo_path"] %}
                 <a href="/uploads/{{ catch['photo_path'] }}" target="_blank">
                     <img src="/uploads/{{ catch['photo_path'] }}" alt="Catch Photo" class="catch-image">
                 </a>
             {% endif %}
 
-            <h2 style="display: flex; align-items: center; justify-content: space-between;">
-                <span>{{ catch["species"] or "Unknown Species" }}</span>
+            <h2 style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <span>
+                    <i class="fa-solid fa-fish"></i>
+                    {{ catch["species"] or "Unknown Species" }}
+                </span>
                 <a href="/toggle_favorite/{{ catch['id'] }}" style="text-decoration: none; font-size: 1.4rem;">
                     {% if catch["is_favorite"] == 1 %}
                         ⭐
@@ -61,19 +64,68 @@
                     {% endif %}
                 </a>
             </h2>
-            <p><strong>Lure:</strong> {{ catch["lure"] or "N/A" }}</p>
-            <p><strong>Technique:</strong> {{ catch["technique"] or "N/A" }}</p>
-            <p><strong>Location:</strong> {{ catch["location"] or "N/A" }}</p>
-            <p><strong>Weight:</strong> {{ catch["weight"] or "N/A" }}</p>
-            <p><strong>Length:</strong> {{ catch["length"] or "N/A" }}</p>
-            <p><strong>Timestamp:</strong> {{ catch["timestamp"] or "N/A" }}</p>
-            <p><strong>Notes:</strong> {{ catch["notes"] or "N/A" }}</p>
 
+            <p>
+                <i class="fa-solid fa-fish"></i>
+                <strong>Lure:</strong> {{ catch["lure"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-hand"></i>
+                <strong>Technique:</strong> {{ catch["technique"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-location-dot"></i>
+                <strong>Location:</strong> {{ catch["location"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-weight-hanging"></i>
+                <strong>Weight:</strong> {{ catch["weight"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-ruler"></i>
+                <strong>Length:</strong> {{ catch["length"] or "N/A" }}
+            </p>
+
+                        <p>
+                <i class="fa-solid fa-wind"></i>
+                <strong>Wind:</strong> {{ catch["wind"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-temperature-three-quarters"></i>
+                <strong>Temperature:</strong> {{ catch["temp"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-cloud"></i>
+                <strong>Cloud Coverage:</strong> {{ catch["cloud_cover"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-clock"></i>
+                <strong>Timestamp:</strong> {{ catch["timestamp"] or "N/A" }}
+            </p>
+
+            <p>
+                <i class="fa-solid fa-note-sticky"></i>
+                <strong>Notes:</strong> {{ catch["notes"] or "N/A" }}
+            </p>
+            
             <div class="actions">
-                <a href="/edit/{{ catch['id'] }}">Edit Catch</a>
+                <a href="/edit/{{ catch['id'] }}">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Edit Catch</span>
+                </a>
 
                 <form method="POST" action="/delete/{{ catch['id'] }}" class="inline-form" onsubmit="return confirm('Delete this catch?');">
-                    <button type="submit" class="delete-button">Delete Catch</button>
+                    <button type="submit" class="delete-button">
+                        <i class="fa-solid fa-trash"></i>
+                        Delete Catch
+                    </button>
                 </form>
             </div>
         </div>

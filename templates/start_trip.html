@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1><i class="fa-solid fa-play"></i> Start Trip</h1>
+    <p class="muted">Start a live fishing route and save it for later.</p>
+</div>
+
+<div class="card">
+    <form method="POST">
+        <label>Trip Name</label>
+        <input name="name" placeholder="Morning Peach Lake trip">
+
+        <label>Notes</label>
+        <textarea name="notes" rows="4" placeholder="Conditions, goals, areas to try..."></textarea>
+
+        <button type="submit">
+            <i class="fa-solid fa-play"></i>
+            Start Trip
+        </button>
+    </form>
+</div>
+{% endblock %}
