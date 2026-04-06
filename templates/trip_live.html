@@ -40,11 +40,15 @@ let liveTripLine = null;
 let liveTripMarker = null;
 let liveTripWatchId = null;
 let liveTripPoints = [];
+let liveTripCatchMarkers = [];
 let latestTripLatitude = "";
 let latestTripLongitude = "";
 let lastSavedTripLatitude = null;
 let lastSavedTripLongitude = null;
 const MIN_SAVE_DISTANCE_METERS = 15;
+
+const initialTripPoints = {{ trip_points|tojson }};
+const initialTripCatches = {{ trip_catches|tojson }};
 
 function initLiveTripMap() {
     if (liveTripMap) {
@@ -65,8 +69,77 @@ function initLiveTripMap() {
     }, 100);
 }
 
+function buildCatchPopup(catchData) {
+    const safeSpecies = catchData.species || "Unknown Species";
+    const safeTimestamp = catchData.timestamp || "";
+    const safeLocation = catchData.location || "";
+    const safeLure = catchData.lure || "";
+    const safeNotes = catchData.notes || "";
+    const photoHtml = catchData.photo_path
+        ? `<div style="margin-top: 8px;"><img src="/uploads/${catchData.photo_path}" alt="Catch photo" style="max-width: 180px; border-radius: 8px;"></div>`
+        : "";
+
+    return `
+        <div style="min-width: 180px;">
+            <strong>${safeSpecies}</strong><br>
+            ${safeTimestamp ? `${safeTimestamp}<br>` : ""}
+            ${safeLocation ? `${safeLocation}<br>` : ""}
+            ${safeLure ? `Lure: ${safeLure}<br>` : ""}
+            ${safeNotes ? `${safeNotes}<br>` : ""}
+            ${photoHtml}
+        </div>
+    `;
+}
+
+function addTripCatchMarker(catchData) {
+    const marker = L.marker([catchData.latitude, catchData.longitude]).addTo(liveTripMap);
+    marker.bindPopup(buildCatchPopup(catchData));
+    liveTripCatchMarkers.push(marker);
+}
+
+function loadInitialTripData() {
+    if (initialTripPoints.length > 0) {
+        liveTripPoints = initialTripPoints.map(function(point) {
+            return [point.latitude, point.longitude];
+        });
+
+        liveTripLine.setLatLngs(liveTripPoints);
+
+        const lastPoint = initialTripPoints[initialTripPoints.length - 1];
+        latestTripLatitude = lastPoint.latitude;
+        latestTripLongitude = lastPoint.longitude;
+        lastSavedTripLatitude = lastPoint.latitude;
+        lastSavedTripLongitude = lastPoint.longitude;
+
+        if (liveTripMarker) {
+            liveTripMap.removeLayer(liveTripMarker);
+        }
+
+        liveTripMarker = L.marker([lastPoint.latitude, lastPoint.longitude]).addTo(liveTripMap);
+    }
+
+    initialTripCatches.forEach(function(catchData) {
+        addTripCatchMarker(catchData);
+    });
+
+    const boundsPoints = [];
+
+    liveTripPoints.forEach(function(point) {
+        boundsPoints.push(point);
+    });
+
+    initialTripCatches.forEach(function(catchData) {
+        boundsPoints.push([catchData.latitude, catchData.longitude]);
+    });
+
+    if (boundsPoints.length > 0) {
+        liveTripMap.fitBounds(boundsPoints, { padding: [30, 30] });
+    }
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     initLiveTripMap();
+    loadInitialTripData();
 });
 
 function updateTripMap(lat, lon) {
@@ -132,7 +205,7 @@ function startTracking() {
 
     liveTripWatchId = navigator.geolocation.watchPosition(
         async function(position) {
-                        const lat = position.coords.latitude;
+            const lat = position.coords.latitude;
             const lon = position.coords.longitude;
             const accuracy = position.coords.accuracy || 0;
 
@@ -188,6 +261,7 @@ function startTracking() {
         }
     );
 }
+
 function goToAddCatchDuringTrip() {
     const status = document.getElementById("trip-status");
 

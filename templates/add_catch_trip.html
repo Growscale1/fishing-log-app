@@ -67,6 +67,12 @@
         <label>Cloud Coverage</label>
         <input name="cloud_cover" id="cloud_cover">
 
+        <label>Water Temp</label>
+        <input name="water_temp" id="water_temp" placeholder="Optional manual entry">
+
+        <label>Air Pressure</label>
+        <input name="air_pressure" id="air_pressure">
+
         <label>Notes</label>
         <textarea name="notes" rows="4"></textarea>
 
@@ -219,13 +225,14 @@ async function useCurrentWeather() {
     const windInput = document.getElementById("wind");
     const tempInput = document.getElementById("temp");
     const cloudInput = document.getElementById("cloud_cover");
+    const airPressureInput = document.getElementById("air_pressure");
 
     status.textContent = "Getting current weather...";
 
     try {
         const coords = await getCurrentCoordinates();
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,wind_speed_10m,cloud_cover`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,wind_speed_10m,cloud_cover,surface_pressure`;
 
         const response = await fetch(url);
         const data = await response.json();
@@ -238,6 +245,7 @@ async function useCurrentWeather() {
         const tempC = data.current.temperature_2m;
         const windKmh = data.current.wind_speed_10m;
         const cloud = data.current.cloud_cover;
+        const pressureHpa = data.current.surface_pressure;
 
         const tempF = (tempC * 9 / 5) + 32;
         const windMph = windKmh * 0.621371;
@@ -245,6 +253,10 @@ async function useCurrentWeather() {
         tempInput.value = `${tempF.toFixed(1)}°F`;
         windInput.value = `${windMph.toFixed(1)} mph`;
         cloudInput.value = `${cloud}%`;
+
+        if (pressureHpa !== undefined && pressureHpa !== null) {
+            airPressureInput.value = `${pressureHpa.toFixed(1)} hPa`;
+        }
 
         status.textContent = "Current weather filled in.";
     } catch (error) {

@@ -42,6 +42,8 @@ def init_db():
             wind TEXT,
             temp TEXT,
             cloud_cover TEXT,
+            water_temp TEXT,
+            air_pressure TEXT,
             notes TEXT,
             mode TEXT,
             photo_path TEXT,
@@ -89,6 +91,16 @@ def init_db():
 
     try:
         cursor.execute("ALTER TABLE catches ADD COLUMN trip_id INTEGER")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE catches ADD COLUMN water_temp TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE catches ADD COLUMN air_pressure TEXT")
     except sqlite3.OperationalError:
         pass
 
@@ -203,9 +215,9 @@ def insert_catch(data):
     cursor.execute("""
         INSERT INTO catches (
             timestamp, species, lure, technique, location, weight, length,
-            wind, temp, cloud_cover, notes, mode, photo_path, photo_taken_at,
+            wind, temp, cloud_cover, water_temp, air_pressure, notes, mode, photo_path, photo_taken_at,
             photo_gps_lat, photo_gps_lon, photo_device, metadata_found, trip_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data["timestamp"],
         data["species"],
@@ -217,6 +229,8 @@ def insert_catch(data):
         data["wind"],
         data["temp"],
         data["cloud_cover"],
+        data["water_temp"],
+        data["air_pressure"],
         data["notes"],
         data["mode"],
         data["photo_path"],
@@ -331,6 +345,38 @@ def get_catches_for_trip(trip_id):
     catches = cursor.fetchall()
     conn.close()
     return catches
+
+
+def build_trip_catches_for_map(trip_id):
+    raw_catches = get_catches_for_trip(trip_id)
+    trip_catches = []
+
+    for catch in raw_catches:
+        lat_raw = clean_value(catch["photo_gps_lat"])
+        lon_raw = clean_value(catch["photo_gps_lon"])
+
+        if not lat_raw or not lon_raw:
+            continue
+
+        try:
+            lat = float(lat_raw)
+            lon = float(lon_raw)
+        except ValueError:
+            continue
+
+        trip_catches.append({
+            "id": catch["id"],
+            "species": clean_value(catch["species"]) or "Unknown Species",
+            "timestamp": clean_value(catch["timestamp"]) or "",
+            "location": clean_value(catch["location"]) or "",
+            "lure": clean_value(catch["lure"]) or "",
+            "notes": clean_value(catch["notes"]) or "",
+            "photo_path": clean_value(catch["photo_path"]) or "",
+            "latitude": lat,
+            "longitude": lon
+        })
+
+    return trip_catches
 
 def end_trip_by_id(trip_id):
     conn = get_connection()
@@ -674,6 +720,8 @@ def add_catch():
             "wind": request.form.get("wind", "").strip(),
             "temp": request.form.get("temp", "").strip(),
             "cloud_cover": request.form.get("cloud_cover", "").strip(),
+            "water_temp": request.form.get("water_temp", "").strip(),
+            "air_pressure": request.form.get("air_pressure", "").strip(),
             "notes": request.form.get("notes", "").strip(),
             "mode": "web",
             "photo_path": saved_filename,
@@ -687,6 +735,10 @@ def add_catch():
 
         insert_catch(new_catch)
         flash("Catch added successfully")
+
+        if trip_id_raw.isdigit():
+            return redirect(url_for("live_trip", trip_id=int(trip_id_raw)))
+
         return redirect(url_for("home"))
 
     return render_template("add_catch.html")
@@ -766,7 +818,25 @@ def live_trip(trip_id):
     if not trip:
         return "Trip not found", 404
 
-    return render_template("trip_live.html", trip=trip)
+    raw_points = get_trip_points(trip_id)
+    trip_points = []
+
+    for point in raw_points:
+        trip_points.append({
+            "latitude": point["latitude"],
+            "longitude": point["longitude"],
+            "timestamp": point["timestamp"],
+            "accuracy": point["accuracy"]
+        })
+
+    trip_catches = build_trip_catches_for_map(trip_id)
+
+    return render_template(
+        "trip_live.html",
+        trip=trip,
+        trip_points=trip_points,
+        trip_catches=trip_catches
+    )
 
 @app.route("/trips/<int:trip_id>/add-catch", methods=["GET"])
 def add_catch_for_trip(trip_id):
