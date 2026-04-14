@@ -295,7 +295,7 @@ def update_catch(catch_id, data):
 
     conn.commit()
     conn.close()
-    
+
 def create_trip(name="", notes=""):
     conn = get_connection()
     cursor = conn.cursor()
@@ -831,6 +831,8 @@ def map_page():
             "location": clean_value(catch["location"]) or "",
             "lure": clean_value(catch["lure"]) or "",
             "notes": clean_value(catch["notes"]) or "",
+            "water_temp": clean_value(catch["water_temp"]) or "",
+            "air_pressure": clean_value(catch["air_pressure"]) or "",
             "photo_path": clean_value(catch["photo_path"]) or "",
             "latitude": lat,
             "longitude": lon,
@@ -975,6 +977,8 @@ def trip_detail(trip_id):
             "location": clean_value(catch["location"]) or "",
             "lure": clean_value(catch["lure"]) or "",
             "notes": clean_value(catch["notes"]) or "",
+            "water_temp": clean_value(catch["water_temp"]) or "",
+            "air_pressure": clean_value(catch["air_pressure"]) or "",
             "photo_path": clean_value(catch["photo_path"]) or "",
             "latitude": lat,
             "longitude": lon
