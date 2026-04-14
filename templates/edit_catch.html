@@ -40,6 +40,15 @@
         <label>Temperature</label>
         <input name="temp" value="{{ catch['temp'] or '' }}">
 
+        <label>Cloud Coverage</label>
+        <input name="cloud_cover" value="{{ catch['cloud_cover'] or '' }}">
+
+        <label>Water Temp (°F)</label>
+        <input name="water_temp" value="{{ catch['water_temp'] or '' }}">
+
+        <label>Air Pressure (inHg)</label>
+        <input name="air_pressure" value="{{ catch['air_pressure'] or '' }}">
+
         <label>Notes</label>
         <textarea name="notes" rows="4">{{ catch['notes'] or '' }}</textarea>
 

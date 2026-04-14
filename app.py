@@ -253,6 +253,49 @@ def delete_catch_by_id(catch_id):
     conn.commit()
     conn.close()
 
+def update_catch(catch_id, data):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE catches
+        SET
+            timestamp = ?,
+            species = ?,
+            lure = ?,
+            technique = ?,
+            location = ?,
+            weight = ?,
+            length = ?,
+            wind = ?,
+            temp = ?,
+            cloud_cover = ?,
+            water_temp = ?,
+            air_pressure = ?,
+            notes = ?,
+            photo_path = ?
+        WHERE id = ?
+    """, (
+        data["timestamp"],
+        data["species"],
+        data["lure"],
+        data["technique"],
+        data["location"],
+        data["weight"],
+        data["length"],
+        data["wind"],
+        data["temp"],
+        data["cloud_cover"],
+        data["water_temp"],
+        data["air_pressure"],
+        data["notes"],
+        data["photo_path"],
+        catch_id
+    ))
+
+    conn.commit()
+    conn.close()
+    
 def create_trip(name="", notes=""):
     conn = get_connection()
     cursor = conn.cursor()
@@ -637,7 +680,7 @@ def edit_catch(catch_id):
         else:
             timestamp = catch["timestamp"]
 
-            updated = {
+        updated = {
             "timestamp": timestamp,
             "species": request.form.get("species", "").strip(),
             "lure": request.form.get("lure", "").strip(),
@@ -648,6 +691,8 @@ def edit_catch(catch_id):
             "wind": request.form.get("wind", "").strip(),
             "temp": request.form.get("temp", "").strip(),
             "cloud_cover": request.form.get("cloud_cover", "").strip(),
+            "water_temp": request.form.get("water_temp", "").strip(),
+            "air_pressure": request.form.get("air_pressure", "").strip(),
             "notes": request.form.get("notes", "").strip(),
             "photo_path": photo_path
         }

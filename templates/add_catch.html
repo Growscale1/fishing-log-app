@@ -61,10 +61,10 @@
         <label>Cloud Coverage</label>
         <input name="cloud_cover" id="cloud_cover">
 
-        <label>Water Temp</label>
+        <label>Water Temp (°F)</label>
         <input name="water_temp" id="water_temp" placeholder="Optional manual entry">
 
-        <label>Air Pressure</label>
+        <label>Air Pressure (inHg)</label>
         <input name="air_pressure" id="air_pressure">
 
         <label>Notes</label>
@@ -226,13 +226,14 @@ async function useCurrentWeather() {
 
         const tempF = (tempC * 9 / 5) + 32;
         const windMph = windKmh * 0.621371;
+        const pressureInHg = pressureHpa * 0.0295299830714;
 
         tempInput.value = `${tempF.toFixed(1)}°F`;
         windInput.value = `${windMph.toFixed(1)} mph`;
         cloudInput.value = `${cloud}%`;
 
         if (pressureHpa !== undefined && pressureHpa !== null) {
-            airPressureInput.value = `${pressureHpa.toFixed(1)} hPa`;
+            airPressureInput.value = `${pressureInHg.toFixed(2)} inHg`;
         }
 
         status.textContent = "Current weather filled in.";
