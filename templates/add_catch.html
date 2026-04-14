@@ -8,8 +8,7 @@
         <input type="file" name="photo" accept="image/*">
 
         <label>Catch Time</label>
-        <input type="datetime-local" name="timestamp">
-
+        <input type="datetime-local" name="timestamp" id="timestamp">
         <label>Species</label>
         <input name="species">
 
@@ -78,6 +77,12 @@
 let addCatchMap = null;
 let addCatchMarker = null;
 
+function getCurrentLocalDateTimeValue() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const local = new Date(now.getTime() - (offset * 60 * 1000));
+    return local.toISOString().slice(0, 16);
+}
 function initAddCatchMap() {
     if (addCatchMap) {
         return;
@@ -108,6 +113,11 @@ function updateAddCatchMap(lat, lon) {
 
 document.addEventListener("DOMContentLoaded", function () {
     initAddCatchMap();
+
+    const timestampInput = document.getElementById("timestamp");
+    if (timestampInput && !timestampInput.value) {
+        timestampInput.value = getCurrentLocalDateTimeValue();
+    }
 });
 
 function useMyLocation() {
