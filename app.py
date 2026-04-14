@@ -159,7 +159,7 @@ def migrate_json_to_sqlite():
     conn.close()
 
 
-def get_all_catches(search="", species="", lure="", location=""):
+def get_all_catches(search="", species="", lure="", location="", favorites_only="", sort_by="newest"):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -191,8 +191,33 @@ def get_all_catches(search="", species="", lure="", location=""):
         query += " AND location = ?"
         params.append(location)
 
-    query += " ORDER BY id DESC"
+    if favorites_only == "1":
+        query += " AND is_favorite = 1"
 
+    if sort_by == "oldest":
+        query += " ORDER BY id ASC"
+    elif sort_by == "biggest":
+        query += """
+            ORDER BY
+                CASE
+                    WHEN REPLACE(REPLACE(LOWER(TRIM(weight)), 'lbs', ''), 'lb', '') = '' THEN 1
+                    ELSE 0
+                END,
+                CAST(REPLACE(REPLACE(LOWER(TRIM(weight)), 'lbs', ''), 'lb', '') AS REAL) DESC,
+                id DESC
+        """
+    elif sort_by == "longest":
+        query += """
+            ORDER BY
+                CASE
+                    WHEN REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(length)), 'inches', ''), 'inch', ''), 'in', ''), '\"', '') = '' THEN 1
+                    ELSE 0
+                END,
+                CAST(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(length)), 'inches', ''), 'inch', ''), 'in', ''), '\"', '') AS REAL) DESC,
+                id DESC
+        """
+    else:
+        query += " ORDER BY id DESC"
     cursor.execute(query, params)
     catches = cursor.fetchall()
     conn.close()
@@ -564,8 +589,17 @@ def home():
     species = request.args.get("species", "").strip()
     lure = request.args.get("lure", "").strip()
     location = request.args.get("location", "").strip()
+    favorites_only = request.args.get("favorites_only", "").strip()
+    sort_by = request.args.get("sort_by", "newest").strip()
 
-    catches = get_all_catches(search=search, species=species, lure=lure, location=location)
+    catches = get_all_catches(
+        search=search,
+        species=species,
+        lure=lure,
+        location=location,
+        favorites_only=favorites_only,
+        sort_by=sort_by
+    )
 
     species_options = get_unique_values("species")
     lure_options = get_unique_values("lure")
@@ -578,6 +612,8 @@ def home():
         species=species,
         lure=lure,
         location=location,
+        favorites_only=favorites_only,
+        sort_by=sort_by,
         species_options=species_options,
         lure_options=lure_options,
         location_options=location_options

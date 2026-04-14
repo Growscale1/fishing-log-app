@@ -33,6 +33,25 @@
             {% endfor %}
         </select>
 
+        <label>Sort By</label>
+        <select name="sort_by">
+            <option value="newest" {% if sort_by == "newest" %}selected{% endif %}>Newest</option>
+            <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest</option>
+            <option value="biggest" {% if sort_by == "biggest" %}selected{% endif %}>Biggest Weight</option>
+            <option value="longest" {% if sort_by == "longest" %}selected{% endif %}>Longest Length</option>
+        </select>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px; margin-bottom: 12px;">
+            <input
+                type="checkbox"
+                name="favorites_only"
+                value="1"
+                {% if favorites_only == "1" %}checked{% endif %}
+                style="width: auto; margin: 0;"
+            >
+            <label style="margin: 0;">Favorites Only</label>
+        </div>
+
         <button type="submit">Apply Filters</button>
         <a href="/" style="margin-left: 10px;">Clear</a>
     </form>
