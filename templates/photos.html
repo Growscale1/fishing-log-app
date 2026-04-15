@@ -11,55 +11,68 @@
         {{ catches|length }} photo{% if catches|length != 1 %}s{% endif %}
     </p>
 
-    <form method="GET" action="{{ url_for('photo_library') }}">
-        <label for="search">Search</label>
+<form method="GET" action="{{ url_for('photo_library') }}">
+    <label for="search">Search</label>
+    <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{ search }}"
+        placeholder="Search species, location, lure, notes..."
+    >
+
+    <label for="species">Species</label>
+    <select id="species" name="species">
+        <option value="">All species</option>
+        {% for option in species_options %}
+            <option value="{{ option }}" {% if species == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="location">Location</label>
+    <select id="location" name="location">
+        <option value="">All locations</option>
+        {% for option in location_options %}
+            <option value="{{ option }}" {% if location == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="start_date">Start Date</label>
+    <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+
+    <label for="end_date">End Date</label>
+    <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+
+    <label for="sort_by">Sort By</label>
+    <select id="sort_by" name="sort_by">
+        <option value="newest" {% if sort_by == "newest" %}selected{% endif %}>Newest</option>
+        <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest</option>
+        <option value="biggest" {% if sort_by == "biggest" %}selected{% endif %}>Biggest Weight</option>
+        <option value="longest" {% if sort_by == "longest" %}selected{% endif %}>Longest Length</option>
+    </select>
+
+    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin-top: 10px; margin-bottom: 14px;">
         <input
-            type="text"
-            id="search"
-            name="search"
-            value="{{ search }}"
-            placeholder="Search species, location, lure, notes..."
+            type="checkbox"
+            name="favorites_only"
+            value="1"
+            {% if favorites_only == "1" %}checked{% endif %}
+            style="width: auto; margin: 0;"
         >
+        Favorites only
+    </label>
 
-        <label for="species">Species</label>
-        <select id="species" name="species">
-            <option value="">All species</option>
-            {% for option in species_options %}
-                <option value="{{ option }}" {% if species == option %}selected{% endif %}>{{ option }}</option>
-            {% endfor %}
-        </select>
-
-        <label for="location">Location</label>
-        <select id="location" name="location">
-            <option value="">All locations</option>
-            {% for option in location_options %}
-                <option value="{{ option }}" {% if location == option %}selected{% endif %}>{{ option }}</option>
-            {% endfor %}
-        </select>
-
-        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin-top: 10px; margin-bottom: 14px;">
-            <input
-                type="checkbox"
-                name="favorites_only"
-                value="1"
-                {% if favorites_only == "1" %}checked{% endif %}
-                style="width: auto; margin: 0;"
-            >
-            Favorites only
-        </label>
-
-        <div class="actions">
-            <button type="submit">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                Apply Filters
-            </button>
-            <a href="{{ url_for('photo_library') }}">
-                <i class="fa-solid fa-rotate-left"></i>
-                Reset
-            </a>
-        </div>
-    </form>
-</div>
+    <div class="actions">
+        <button type="submit">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Apply Filters
+        </button>
+        <a href="{{ url_for('photo_library') }}">
+            <i class="fa-solid fa-rotate-left"></i>
+            Reset
+        </a>
+    </div>
+</form>
 
 {% if catches %}
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">

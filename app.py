@@ -646,7 +646,7 @@ def get_catches_for_day(day_str):
     conn.close()
     return catches
 
-def get_photo_library_catches(search="", species="", location="", favorites_only=""):
+def get_photo_library_catches(search="", species="", location="", favorites_only="", start_date="", end_date="", sort_by="newest"):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -679,10 +679,41 @@ def get_photo_library_catches(search="", species="", location="", favorites_only
         query += " AND location = ?"
         params.append(location)
 
+    if start_date:
+        query += " AND substr(timestamp, 1, 10) >= ?"
+        params.append(start_date)
+
+    if end_date:
+        query += " AND substr(timestamp, 1, 10) <= ?"
+        params.append(end_date)
+
     if favorites_only == "1":
         query += " AND is_favorite = 1"
 
-    query += " ORDER BY id DESC"
+    if sort_by == "oldest":
+        query += " ORDER BY id ASC"
+    elif sort_by == "biggest":
+        query += """
+            ORDER BY
+                CASE
+                    WHEN REPLACE(REPLACE(LOWER(TRIM(weight)), 'lbs', ''), 'lb', '') = '' THEN 1
+                    ELSE 0
+                END,
+                CAST(REPLACE(REPLACE(LOWER(TRIM(weight)), 'lbs', ''), 'lb', '') AS REAL) DESC,
+                id DESC
+        """
+    elif sort_by == "longest":
+        query += """
+            ORDER BY
+                CASE
+                    WHEN REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(length)), 'inches', ''), 'inch', ''), 'in', ''), '\"', '') = '' THEN 1
+                    ELSE 0
+                END,
+                CAST(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(length)), 'inches', ''), 'inch', ''), 'in', ''), '\"', '') AS REAL) DESC,
+                id DESC
+        """
+    else:
+        query += " ORDER BY id DESC"
 
     cursor.execute(query, params)
     catches = cursor.fetchall()
@@ -1143,12 +1174,18 @@ def photo_library():
     species = request.args.get("species", "").strip()
     location = request.args.get("location", "").strip()
     favorites_only = request.args.get("favorites_only", "").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+    sort_by = request.args.get("sort_by", "newest").strip()
 
     catches = get_photo_library_catches(
         search=search,
         species=species,
         location=location,
-        favorites_only=favorites_only
+        favorites_only=favorites_only,
+        start_date=start_date,
+        end_date=end_date,
+        sort_by=sort_by
     )
 
     species_options = get_unique_values("species")
@@ -1161,10 +1198,13 @@ def photo_library():
         species=species,
         location=location,
         favorites_only=favorites_only,
+        start_date=start_date,
+        end_date=end_date,
+        sort_by=sort_by,
         species_options=species_options,
         location_options=location_options
     )
-    
+
 @app.route("/map")
 def map_page():
     catches = get_all_catches()
