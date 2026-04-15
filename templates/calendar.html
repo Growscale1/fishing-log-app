@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+<h1>
+    <i class="fa-solid fa-calendar-days"></i>
+    Catch Calendar
+</h1>
+
+<p class="muted" style="margin-top: 0;">
+    {{ calendar_data.month_label }}: {{ calendar_data.total_catches }} catch{% if calendar_data.total_catches != 1 %}es{% endif %}
+</p>
+    <form method="GET" action="{{ url_for('calendar_page') }}">
+        <label for="month">Month</label>
+        <input type="month" id="month" name="month" value="{{ calendar_data.month_value }}">
+
+        <label for="search">Search</label>
+        <input
+            type="text"
+            id="search"
+            name="search"
+            value="{{ search }}"
+            placeholder="Search species, lure, location, notes..."
+        >
+
+        <label for="species">Species</label>
+        <select id="species" name="species">
+            <option value="">All species</option>
+            {% for option in species_options %}
+                <option value="{{ option }}" {% if species == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="lure">Lure</label>
+        <select id="lure" name="lure">
+            <option value="">All lures</option>
+            {% for option in lure_options %}
+                <option value="{{ option }}" {% if lure == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="location">Location</label>
+        <select id="location" name="location">
+            <option value="">All locations</option>
+            {% for option in location_options %}
+                <option value="{{ option }}" {% if location == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="actions">
+            <button type="submit">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Apply Filters
+            </button>
+            <a href="{{ url_for('calendar_page') }}">
+                <i class="fa-solid fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
+        <a href="{{ url_for('calendar_page', month=calendar_data.prev_month, search=search, species=species, lure=lure, location=location) }}">
+            <i class="fa-solid fa-chevron-left"></i>
+            Previous
+        </a>
+
+        <h2 style="margin: 0;">{{ calendar_data.month_label }}</h2>
+
+        <a href="{{ url_for('calendar_page', month=calendar_data.next_month, search=search, species=species, lure=lure, location=location) }}">
+            Next
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+    </div>
+
+    <div style="overflow-x: auto; padding-bottom: 4px;">
+        <div style="min-width: 980px;">
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; font-weight: bold; text-align: center;">
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+                <div>Sun</div>
+            </div>
+
+            <div style="display: grid; gap: 8px;">
+                {% for week in calendar_data.weeks %}
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+                        {% for day in week %}
+                            <div style="
+                                min-height: 160px;
+                                background: {% if day.in_month %}white{% else %}#f1f1f1{% endif %};
+                                border: 1px solid #ddd;
+                                border-radius: 12px;
+                                padding: 10px;
+                                overflow: hidden;
+                            ">
+                                <div style="margin-bottom: 8px;">
+                                    <a
+                                        href="{{ url_for('calendar_day_page', day_str=day.date) }}"
+                                        style="font-weight: bold; color: {% if day.in_month %}#111{% else %}#999{% endif %};"
+                                    >
+                                        {{ day.day_number }}
+                                    </a>
+                                </div>
+
+                                {% if day.catches %}
+                                    <div style="display: grid; gap: 8px;">
+                                        {% for catch in day.catches %}
+                                            <a href="{{ url_for('edit_catch', catch_id=catch.id) }}" style="display: block; background: #f8fbff; border-radius: 10px; padding: 8px; color: inherit;">
+                                                {% if catch.photo_path %}
+                                                    <img
+                                                        src="{{ url_for('uploaded_file', filename=catch.photo_path) }}"
+                                                        alt="{{ catch.species }}"
+                                                        style="width: 100%; height: 64px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;"
+                                                    >
+                                                {% endif %}
+
+                                                <div style="font-size: 0.88rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">
+                                                    {{ catch.species }}
+                                                </div>
+
+                                                {% if catch.weight %}
+                                                    <div class="muted" style="font-size: 0.8rem;">
+                                                        <strong>Wt:</strong> {{ catch.weight }}
+                                                    </div>
+                                                {% endif %}
+
+                                                {% if catch.length %}
+                                                    <div class="muted" style="font-size: 0.8rem;">
+                                                        <strong>Len:</strong> {{ catch.length }}
+                                                    </div>
+                                                {% endif %}
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="muted" style="font-size: 0.85rem;">No catches</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

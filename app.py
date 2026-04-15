@@ -3,7 +3,7 @@ import os
 import uuid
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import Counter
 import base64
 from openai import OpenAI
@@ -590,6 +590,130 @@ def get_unique_values(column_name):
     conn.close()
     return values
 
+def get_calendar_catches(search="", month="", species="", lure="", location=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM catches WHERE timestamp IS NOT NULL AND TRIM(timestamp) != ''"
+    params = []
+
+    if month:
+        query += " AND substr(timestamp, 1, 7) = ?"
+        params.append(month)
+
+    if search:
+        query += """
+            AND (
+                species LIKE ? OR
+                lure LIKE ? OR
+                location LIKE ? OR
+                notes LIKE ? OR
+                technique LIKE ?
+            )
+        """
+        like_value = f"%{search}%"
+        params.extend([like_value, like_value, like_value, like_value, like_value])
+
+    if species:
+        query += " AND species = ?"
+        params.append(species)
+
+    if lure:
+        query += " AND lure = ?"
+        params.append(lure)
+
+    if location:
+        query += " AND location = ?"
+        params.append(location)
+
+    query += " ORDER BY timestamp ASC, id ASC"
+
+    cursor.execute(query, params)
+    catches = cursor.fetchall()
+    conn.close()
+    return catches
+
+def get_catches_for_day(day_str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT *
+        FROM catches
+        WHERE substr(timestamp, 1, 10) = ?
+        ORDER BY timestamp ASC, id ASC
+    """, (day_str,))
+    catches = cursor.fetchall()
+    conn.close()
+    return catches
+
+
+def build_calendar_data(catches, month_str):
+    try:
+        current_month = datetime.strptime(month_str, "%Y-%m")
+    except ValueError:
+        current_month = datetime.now().replace(day=1)
+
+    month_start = current_month.replace(day=1)
+
+    if current_month.month == 12:
+        next_month = current_month.replace(year=current_month.year + 1, month=1, day=1)
+    else:
+        next_month = current_month.replace(month=current_month.month + 1, day=1)
+
+    prev_month = (month_start - timedelta(days=1)).replace(day=1)
+    month_end = next_month - timedelta(days=1)
+
+    start_offset = month_start.weekday()
+    grid_start = month_start - timedelta(days=start_offset)
+
+    end_offset = 6 - month_end.weekday()
+    grid_end = month_end + timedelta(days=end_offset)
+
+    catches_by_day = {}
+
+    for catch in catches:
+        catch_dt = parse_datetime_from_catch(catch)
+        if not catch_dt:
+            continue
+
+        day_key = catch_dt.strftime("%Y-%m-%d")
+        catches_by_day.setdefault(day_key, []).append({
+            "id": catch["id"],
+            "species": clean_value(catch["species"]) or "Unknown Species",
+            "weight": clean_value(catch["weight"]) or "",
+            "length": clean_value(catch["length"]) or "",
+            "photo_path": clean_value(catch["photo_path"]) or "",
+            "location": clean_value(catch["location"]) or "",
+            "timestamp": clean_value(catch["timestamp"]) or ""
+        })
+
+    weeks = []
+    current_day = grid_start
+
+    while current_day <= grid_end:
+        week = []
+
+        for _ in range(7):
+            day_key = current_day.strftime("%Y-%m-%d")
+            week.append({
+                "date": day_key,
+                "day_number": current_day.day,
+                "in_month": current_day.month == current_month.month,
+                "catches": catches_by_day.get(day_key, [])
+            })
+            current_day += timedelta(days=1)
+
+        weeks.append(week)
+
+    return {
+        "month_label": current_month.strftime("%B %Y"),
+        "month_value": current_month.strftime("%Y-%m"),
+        "prev_month": prev_month.strftime("%Y-%m"),
+        "next_month": next_month.strftime("%Y-%m"),
+        "weeks": weeks,
+        "total_catches": len(catches)
+    }
+
 
 def get_insights(catches):
     lure_counter = Counter()
@@ -917,6 +1041,59 @@ def insights():
     data = get_insights(catches)
 
     return render_template("insights.html", data=data)
+
+@app.route("/calendar")
+def calendar_page():
+    search = request.args.get("search", "").strip()
+    species = request.args.get("species", "").strip()
+    lure = request.args.get("lure", "").strip()
+    location = request.args.get("location", "").strip()
+    month = request.args.get("month", "").strip()
+
+    if not month:
+        month = datetime.now().strftime("%Y-%m")
+
+    catches = get_calendar_catches(
+        search=search,
+        month=month,
+        species=species,
+        lure=lure,
+        location=location
+    )
+
+    calendar_data = build_calendar_data(catches, month)
+
+    species_options = get_unique_values("species")
+    lure_options = get_unique_values("lure")
+    location_options = get_unique_values("location")
+
+    return render_template(
+        "calendar.html",
+        calendar_data=calendar_data,
+        search=search,
+        species=species,
+        lure=lure,
+        location=location,
+        species_options=species_options,
+        lure_options=lure_options,
+        location_options=location_options
+    )
+
+@app.route("/calendar/day/<day_str>")
+def calendar_day_page(day_str):
+    catches = get_catches_for_day(day_str)
+
+    try:
+        day_label = datetime.strptime(day_str, "%Y-%m-%d").strftime("%B %d, %Y")
+    except ValueError:
+        day_label = day_str
+
+    return render_template(
+        "calendar_day.html",
+        day_str=day_str,
+        day_label=day_label,
+        catches=catches
+    )
 
 @app.route("/map")
 def map_page():

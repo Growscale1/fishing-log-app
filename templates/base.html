@@ -222,14 +222,18 @@
         <i class="fa-solid fa-plus"></i>
         <span>Add Catch</span>
     </a>
-    <a href="{{ url_for('insights') }}">
-        <i class="fa-solid fa-chart-line"></i>
-        <span>Insights</span>
-    </a>
-    <a href="{{ url_for('map_page') }}">
-        <i class="fa-solid fa-map-location-dot"></i>
-        <span>Map</span>
-    </a>
+<a href="{{ url_for('insights') }}">
+    <i class="fa-solid fa-chart-line"></i>
+    <span>Insights</span>
+</a>
+<a href="{{ url_for('calendar_page') }}">
+    <i class="fa-solid fa-calendar-days"></i>
+    <span>Calendar</span>
+</a>
+<a href="{{ url_for('map_page') }}">
+    <i class="fa-solid fa-map-location-dot"></i>
+    <span>Map</span>
+</a>
     <a href="{{ url_for('trips') }}">
         <i class="fa-solid fa-route"></i>
         <span>Trips</span>
