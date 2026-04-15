@@ -159,7 +159,7 @@ def migrate_json_to_sqlite():
     conn.close()
 
 
-def get_all_catches(search="", species="", lure="", location="", favorites_only="", sort_by="newest"):
+def get_all_catches(search="", species="", lure="", location="", favorites_only="", sort_by="newest", start_date="", end_date=""):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -191,9 +191,16 @@ def get_all_catches(search="", species="", lure="", location="", favorites_only=
         query += " AND location = ?"
         params.append(location)
 
+    if start_date:
+        query += " AND substr(timestamp, 1, 10) >= ?"
+        params.append(start_date)
+
+    if end_date:
+        query += " AND substr(timestamp, 1, 10) <= ?"
+        params.append(end_date)
+
     if favorites_only == "1":
         query += " AND is_favorite = 1"
-
     if sort_by == "oldest":
         query += " ORDER BY id ASC"
     elif sort_by == "biggest":
@@ -506,6 +513,69 @@ def normalize_weight(weight):
     except ValueError:
         return None
 
+def get_trip_stats(trip, raw_points, raw_catches):
+    total_catches = len(raw_catches)
+    favorite_catches_count = sum(1 for catch in raw_catches if catch["is_favorite"] == 1)
+    total_route_points = len(raw_points)
+
+    lure_counter = Counter()
+    biggest_fish = None
+
+    for catch in raw_catches:
+        lure = clean_value(catch["lure"])
+        if lure:
+            lure_counter[lure] += 1
+
+        weight_value = normalize_weight(catch["weight"])
+        if weight_value is not None:
+            if biggest_fish is None or weight_value > biggest_fish["weight_value"]:
+                biggest_fish = {
+                    "weight_value": weight_value,
+                    "display_weight": clean_value(catch["weight"]) or f"{weight_value} lb",
+                    "species": clean_value(catch["species"]) or "Unknown Species"
+                }
+
+    best_lure = None
+    if lure_counter:
+        best_lure = lure_counter.most_common(1)[0][0]
+
+    trip_duration = None
+    started_at_raw = clean_value(trip["started_at"])
+    ended_at_raw = clean_value(trip["ended_at"])
+
+    if started_at_raw:
+        try:
+            started_dt = datetime.strptime(started_at_raw, "%Y-%m-%d %H:%M:%S")
+
+            if ended_at_raw:
+                ended_dt = datetime.strptime(ended_at_raw, "%Y-%m-%d %H:%M:%S")
+            else:
+                ended_dt = datetime.now()
+
+            duration_seconds = int((ended_dt - started_dt).total_seconds())
+            if duration_seconds < 0:
+                duration_seconds = 0
+
+            hours = duration_seconds // 3600
+            minutes = (duration_seconds % 3600) // 60
+
+            if hours > 0 and minutes > 0:
+                trip_duration = f"{hours}h {minutes}m"
+            elif hours > 0:
+                trip_duration = f"{hours}h"
+            else:
+                trip_duration = f"{minutes}m"
+        except ValueError:
+            trip_duration = None
+
+    return {
+        "total_catches": total_catches,
+        "favorite_catches_count": favorite_catches_count,
+        "total_route_points": total_route_points,
+        "best_lure": best_lure,
+        "trip_duration": trip_duration,
+        "biggest_fish": biggest_fish
+    }
 
 def get_unique_values(column_name):
     conn = get_connection()
@@ -582,7 +652,7 @@ def get_insights(catches):
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-
+    
 @app.route("/")
 def home():
     search = request.args.get("search", "").strip()
@@ -591,6 +661,8 @@ def home():
     location = request.args.get("location", "").strip()
     favorites_only = request.args.get("favorites_only", "").strip()
     sort_by = request.args.get("sort_by", "newest").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
 
     catches = get_all_catches(
         search=search,
@@ -598,7 +670,9 @@ def home():
         lure=lure,
         location=location,
         favorites_only=favorites_only,
-        sort_by=sort_by
+        sort_by=sort_by,
+        start_date=start_date,
+        end_date=end_date
     )
 
     species_options = get_unique_values("species")
@@ -614,6 +688,8 @@ def home():
         location=location,
         favorites_only=favorites_only,
         sort_by=sort_by,
+        start_date=start_date,
+        end_date=end_date,
         species_options=species_options,
         lure_options=lure_options,
         location_options=location_options
@@ -1017,14 +1093,18 @@ def trip_detail(trip_id):
             "air_pressure": clean_value(catch["air_pressure"]) or "",
             "photo_path": clean_value(catch["photo_path"]) or "",
             "latitude": lat,
-            "longitude": lon
+            "longitude": lon,
+            "is_favorite": catch["is_favorite"]
         })
+
+    trip_stats = get_trip_stats(trip, raw_points, raw_catches)
 
     return render_template(
         "trip_detail.html",
         trip=trip,
         trip_points=trip_points,
-        trip_catches=trip_catches
+        trip_catches=trip_catches,
+        trip_stats=trip_stats
     )
 
 init_db()

@@ -30,13 +30,76 @@
 </div>
 
 <div class="card">
-    <p class="muted" style="margin-bottom: 8px;">Saved route points: {{ trip_points|length }}</p>
-    <p class="muted" style="margin-bottom: 0;">Trip catches: {{ trip_catches|length }}</p>
+    <h3 style="margin-top: 0; margin-bottom: 14px;">
+        <i class="fa-solid fa-chart-simple"></i>
+        Trip Summary
+    </h3>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+        <div style="padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.04);">
+            <div class="muted" style="font-size: 0.9rem;">Total Catches</div>
+            <div style="font-size: 1.35rem; font-weight: 700;">{{ trip_stats.total_catches }}</div>
+        </div>
+
+        <div style="padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.04);">
+            <div class="muted" style="font-size: 0.9rem;">Favorite Catches</div>
+            <div style="font-size: 1.35rem; font-weight: 700;">{{ trip_stats.favorite_catches_count }}</div>
+        </div>
+
+        <div style="padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.04);">
+            <div class="muted" style="font-size: 0.9rem;">Route Points</div>
+            <div style="font-size: 1.35rem; font-weight: 700;">{{ trip_stats.total_route_points }}</div>
+        </div>
+
+        <div style="padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.04);">
+            <div class="muted" style="font-size: 0.9rem;">Trip Duration</div>
+            <div style="font-size: 1.35rem; font-weight: 700;">
+                {{ trip_stats.trip_duration or "N/A" }}
+            </div>
+        </div>
+
+        <div style="padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.04);">
+            <div class="muted" style="font-size: 0.9rem;">Best Lure</div>
+            <div style="font-size: 1.05rem; font-weight: 700;">
+                {{ trip_stats.best_lure or "N/A" }}
+            </div>
+        </div>
+
+        <div style="padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.04);">
+            <div class="muted" style="font-size: 0.9rem;">Biggest Fish</div>
+            <div style="font-size: 1.05rem; font-weight: 700;">
+                {% if trip_stats.biggest_fish %}
+                    {{ trip_stats.biggest_fish.display_weight }} — {{ trip_stats.biggest_fish.species }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 const tripPoints = {{ trip_points | tojson }};
 const tripCatches = {{ trip_catches | tojson }};
+
+function createFavoriteIcon() {
+    return L.divIcon({
+        className: "",
+        html: `
+            <div style="
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: gold;
+                border: 2px solid #333;
+                box-shadow: 0 0 4px rgba(0,0,0,0.35);
+            "></div>
+        `,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+        popupAnchor: [0, -8]
+    });
+}
 
 document.addEventListener("DOMContentLoaded", function () {
     const tripDetailMap = L.map("trip-detail-map").setView([41.2, -73.7], 9);
@@ -87,7 +150,11 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
         `;
 
-        L.marker([lat, lon]).addTo(tripDetailMap).bindPopup(popupHtml);
+        const markerOptions = catchItem.is_favorite === 1
+            ? { icon: createFavoriteIcon() }
+            : {};
+
+        L.marker([lat, lon], markerOptions).addTo(tripDetailMap).bindPopup(popupHtml);
         bounds.push([lat, lon]);
     });
 

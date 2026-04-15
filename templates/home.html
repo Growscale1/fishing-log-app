@@ -33,6 +33,12 @@
             {% endfor %}
         </select>
 
+        <label>Start Date</label>
+        <input type="date" name="start_date" value="{{ start_date or '' }}">
+
+        <label>End Date</label>
+        <input type="date" name="end_date" value="{{ end_date or '' }}">
+
         <label>Sort By</label>
         <select name="sort_by">
             <option value="newest" {% if sort_by == "newest" %}selected{% endif %}>Newest</option>

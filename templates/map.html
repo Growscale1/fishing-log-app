@@ -27,10 +27,28 @@
 </div>
 
 <script>
+function createFavoriteIcon() {
+    return L.divIcon({
+        className: "",
+        html: `
+            <div style="
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: gold;
+                border: 2px solid #333;
+                box-shadow: 0 0 4px rgba(0,0,0,0.35);
+            "></div>
+        `,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+        popupAnchor: [0, -8]
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const catches = {{ map_catches | tojson }};
     const map = L.map("catch-map").setView([41.2, -73.7], 9);
-
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors"
@@ -65,7 +83,11 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
         `;
 
-        L.marker([lat, lon]).addTo(map).bindPopup(popupHtml);
+        const markerOptions = catchItem.is_favorite === 1
+            ? { icon: createFavoriteIcon() }
+            : {};
+
+        L.marker([lat, lon], markerOptions).addTo(map).bindPopup(popupHtml);
         bounds.push([lat, lon]);
     });
 
