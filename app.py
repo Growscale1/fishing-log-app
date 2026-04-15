@@ -646,6 +646,48 @@ def get_catches_for_day(day_str):
     conn.close()
     return catches
 
+def get_photo_library_catches(search="", species="", location="", favorites_only=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT *
+        FROM catches
+        WHERE photo_path IS NOT NULL
+          AND TRIM(photo_path) != ''
+    """
+    params = []
+
+    if search:
+        query += """
+            AND (
+                species LIKE ? OR
+                location LIKE ? OR
+                lure LIKE ? OR
+                notes LIKE ? OR
+                technique LIKE ?
+            )
+        """
+        like_value = f"%{search}%"
+        params.extend([like_value, like_value, like_value, like_value, like_value])
+
+    if species:
+        query += " AND species = ?"
+        params.append(species)
+
+    if location:
+        query += " AND location = ?"
+        params.append(location)
+
+    if favorites_only == "1":
+        query += " AND is_favorite = 1"
+
+    query += " ORDER BY id DESC"
+
+    cursor.execute(query, params)
+    catches = cursor.fetchall()
+    conn.close()
+    return catches
 
 def build_calendar_data(catches, month_str):
     try:
@@ -1095,6 +1137,34 @@ def calendar_day_page(day_str):
         catches=catches
     )
 
+@app.route("/photos")
+def photo_library():
+    search = request.args.get("search", "").strip()
+    species = request.args.get("species", "").strip()
+    location = request.args.get("location", "").strip()
+    favorites_only = request.args.get("favorites_only", "").strip()
+
+    catches = get_photo_library_catches(
+        search=search,
+        species=species,
+        location=location,
+        favorites_only=favorites_only
+    )
+
+    species_options = get_unique_values("species")
+    location_options = get_unique_values("location")
+
+    return render_template(
+        "photos.html",
+        catches=catches,
+        search=search,
+        species=species,
+        location=location,
+        favorites_only=favorites_only,
+        species_options=species_options,
+        location_options=location_options
+    )
+    
 @app.route("/map")
 def map_page():
     catches = get_all_catches()

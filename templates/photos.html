@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1>
+        <i class="fa-solid fa-images"></i>
+        Photo Library
+    </h1>
+
+    <p class="muted" style="margin-top: 0;">
+        {{ catches|length }} photo{% if catches|length != 1 %}s{% endif %}
+    </p>
+
+    <form method="GET" action="{{ url_for('photo_library') }}">
+        <label for="search">Search</label>
+        <input
+            type="text"
+            id="search"
+            name="search"
+            value="{{ search }}"
+            placeholder="Search species, location, lure, notes..."
+        >
+
+        <label for="species">Species</label>
+        <select id="species" name="species">
+            <option value="">All species</option>
+            {% for option in species_options %}
+                <option value="{{ option }}" {% if species == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="location">Location</label>
+        <select id="location" name="location">
+            <option value="">All locations</option>
+            {% for option in location_options %}
+                <option value="{{ option }}" {% if location == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin-top: 10px; margin-bottom: 14px;">
+            <input
+                type="checkbox"
+                name="favorites_only"
+                value="1"
+                {% if favorites_only == "1" %}checked{% endif %}
+                style="width: auto; margin: 0;"
+            >
+            Favorites only
+        </label>
+
+        <div class="actions">
+            <button type="submit">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Apply Filters
+            </button>
+            <a href="{{ url_for('photo_library') }}">
+                <i class="fa-solid fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+{% if catches %}
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+        {% for catch in catches %}
+            <div class="card">
+                <a href="{{ url_for('uploaded_file', filename=catch['photo_path']) }}" target="_blank">
+                    <img
+                        src="{{ url_for('uploaded_file', filename=catch['photo_path']) }}"
+                        alt="{{ catch['species'] or 'Fish photo' }}"
+                        class="catch-image"
+                        style="max-width: 100%; max-height: none; height: 220px;"
+                    >
+                </a>
+
+                <h2 style="margin-bottom: 8px;">
+                    {{ catch["species"] or "Unknown Species" }}
+                </h2>
+
+                {% if catch["timestamp"] %}
+                    <p><strong>Time:</strong> {{ catch["timestamp"] }}</p>
+                {% endif %}
+
+                {% if catch["weight"] %}
+                    <p><strong>Weight:</strong> {{ catch["weight"] }}</p>
+                {% endif %}
+
+                {% if catch["length"] %}
+                    <p><strong>Length:</strong> {{ catch["length"] }}</p>
+                {% endif %}
+
+                {% if catch["location"] %}
+                    <p><strong>Location:</strong> {{ catch["location"] }}</p>
+                {% endif %}
+
+                {% if catch["is_favorite"] == 1 %}
+                    <p><strong>Favorite:</strong> Yes</p>
+                {% endif %}
+
+                <div class="actions">
+                    <a href="{{ url_for('edit_catch', catch_id=catch['id']) }}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        Edit Catch
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <p class="muted" style="margin: 0;">No photos found for the current filters.</p>
+    </div>
+{% endif %}
+{% endblock %}
