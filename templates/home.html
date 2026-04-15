@@ -70,18 +70,20 @@
 {% else %}
     {% for catch in catches %}
                 <div class="card">
-            {% if catch["photo_path"] %}
-                <a href="/uploads/{{ catch['photo_path'] }}" target="_blank">
-                    <img src="/uploads/{{ catch['photo_path'] }}" alt="Catch Photo" class="catch-image">
-                </a>
-            {% endif %}
-
+{% if catch["photo_path"] %}
+    <img
+        src="/uploads/{{ catch['photo_path'] }}"
+        alt="Catch Photo"
+        class="catch-image lightbox-image"
+        data-fullsrc="/uploads/{{ catch['photo_path'] }}"
+    >
+{% endif %}
             <h2 style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <span>
                     <i class="fa-solid fa-fish"></i>
                     {{ catch["species"] or "Unknown Species" }}
                 </span>
-                <a href="/toggle_favorite/{{ catch['id'] }}" style="text-decoration: none; font-size: 1.4rem;">
+                <a href="/toggle_favorite/{{ catch['id'] }}" style="text-decoration: none; font-size: 1.4rem; line-height: 1;">
                     {% if catch["is_favorite"] == 1 %}
                         ⭐
                     {% else %}
@@ -166,4 +168,27 @@
         </div>
     {% endfor %}
 {% endif %}
+<div id="lightbox-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <img id="lightbox-modal-image" src="" alt="Expanded photo" style="max-width: 95vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("lightbox-modal");
+    const modalImage = document.getElementById("lightbox-modal-image");
+    const images = document.querySelectorAll(".lightbox-image");
+
+    images.forEach(function (img) {
+        img.addEventListener("click", function () {
+            modalImage.src = img.dataset.fullsrc;
+            modal.style.display = "flex";
+        });
+    });
+
+    modal.addEventListener("click", function () {
+        modal.style.display = "none";
+        modalImage.src = "";
+    });
+});
+</script>
 {% endblock %}

@@ -356,14 +356,32 @@ def get_all_trips():
     cursor.execute("""
         SELECT
             trips.*,
-            COUNT(trip_points.id) AS point_count
+            COUNT(DISTINCT trip_points.id) AS point_count,
+            COUNT(DISTINCT catches.id) AS catch_count,
+            SUM(CASE WHEN catches.is_favorite = 1 THEN 1 ELSE 0 END) AS favorite_catch_count
         FROM trips
         LEFT JOIN trip_points ON trips.id = trip_points.trip_id
+        LEFT JOIN catches ON trips.id = catches.trip_id
         GROUP BY trips.id
         ORDER BY trips.id DESC
     """)
-    trips = cursor.fetchall()
+    raw_trips = cursor.fetchall()
     conn.close()
+
+    trips = []
+
+    for trip in raw_trips:
+        trip_dict = dict(trip)
+
+        raw_catches = get_catches_for_trip(trip["id"])
+        stats = get_trip_stats(trip, [None] * trip["point_count"], raw_catches)
+
+        trip_dict["biggest_fish"] = stats["biggest_fish"]
+        trip_dict["trip_duration"] = stats["trip_duration"]
+        trip_dict["favorite_catch_count"] = trip_dict["favorite_catch_count"] or 0
+
+        trips.append(trip_dict)
+
     return trips
 
 
@@ -642,6 +660,63 @@ def get_catches_for_day(day_str):
         WHERE substr(timestamp, 1, 10) = ?
         ORDER BY timestamp ASC, id ASC
     """, (day_str,))
+    catches = cursor.fetchall()
+    conn.close()
+    return catches
+
+def get_map_catches(search="", species="", lure="", location="", favorites_only="", start_date="", end_date=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT *
+        FROM catches
+        WHERE photo_gps_lat IS NOT NULL
+          AND TRIM(photo_gps_lat) != ''
+          AND photo_gps_lon IS NOT NULL
+          AND TRIM(photo_gps_lon) != ''
+    """
+    params = []
+
+    if search:
+        query += """
+            AND (
+                species LIKE ? OR
+                lure LIKE ? OR
+                location LIKE ? OR
+                notes LIKE ? OR
+                technique LIKE ?
+            )
+        """
+        like_value = f"%{search}%"
+        params.extend([like_value, like_value, like_value, like_value, like_value])
+
+    if species:
+        query += " AND species = ?"
+        params.append(species)
+
+    if lure:
+        query += " AND lure = ?"
+        params.append(lure)
+
+    if location:
+        query += " AND location = ?"
+        params.append(location)
+
+    if start_date:
+        query += " AND substr(timestamp, 1, 10) >= ?"
+        params.append(start_date)
+
+    if end_date:
+        query += " AND substr(timestamp, 1, 10) <= ?"
+        params.append(end_date)
+
+    if favorites_only == "1":
+        query += " AND is_favorite = 1"
+
+    query += " ORDER BY id DESC"
+
+    cursor.execute(query, params)
     catches = cursor.fetchall()
     conn.close()
     return catches
@@ -1207,7 +1282,24 @@ def photo_library():
 
 @app.route("/map")
 def map_page():
-    catches = get_all_catches()
+    search = request.args.get("search", "").strip()
+    species = request.args.get("species", "").strip()
+    lure = request.args.get("lure", "").strip()
+    location = request.args.get("location", "").strip()
+    favorites_only = request.args.get("favorites_only", "").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+
+    catches = get_map_catches(
+        search=search,
+        species=species,
+        lure=lure,
+        location=location,
+        favorites_only=favorites_only,
+        start_date=start_date,
+        end_date=end_date
+    )
+
     map_catches = []
 
     for catch in catches:
@@ -1238,7 +1330,24 @@ def map_page():
             "is_favorite": catch["is_favorite"]
         })
 
-    return render_template("map.html", map_catches=map_catches)
+    species_options = get_unique_values("species")
+    lure_options = get_unique_values("lure")
+    location_options = get_unique_values("location")
+
+    return render_template(
+        "map.html",
+        map_catches=map_catches,
+        search=search,
+        species=species,
+        lure=lure,
+        location=location,
+        favorites_only=favorites_only,
+        start_date=start_date,
+        end_date=end_date,
+        species_options=species_options,
+        lure_options=lure_options,
+        location_options=location_options
+    )
 @app.route("/trips")
 def trips():
     all_trips = get_all_trips()

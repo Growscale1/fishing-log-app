@@ -78,14 +78,13 @@
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
         {% for catch in catches %}
             <div class="card">
-                <a href="{{ url_for('uploaded_file', filename=catch['photo_path']) }}" target="_blank">
-                    <img
-                        src="{{ url_for('uploaded_file', filename=catch['photo_path']) }}"
-                        alt="{{ catch['species'] or 'Fish photo' }}"
-                        class="catch-image"
-                        style="max-width: 100%; max-height: none; height: 220px;"
-                    >
-                </a>
+                <img
+                    src="{{ url_for('uploaded_file', filename=catch['photo_path']) }}"
+                    alt="{{ catch['species'] or 'Fish photo' }}"
+                    class="catch-image lightbox-image"
+                    data-fullsrc="{{ url_for('uploaded_file', filename=catch['photo_path']) }}"
+                    style="max-width: 100%; max-height: none; height: 220px;"
+                >
 
                 <h2 style="margin-bottom: 8px;">
                     {{ catch["species"] or "Unknown Species" }}
@@ -125,4 +124,27 @@
         <p class="muted" style="margin: 0;">No photos found for the current filters.</p>
     </div>
 {% endif %}
+<div id="lightbox-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <img id="lightbox-modal-image" src="" alt="Expanded photo" style="max-width: 95vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("lightbox-modal");
+    const modalImage = document.getElementById("lightbox-modal-image");
+    const images = document.querySelectorAll(".lightbox-image");
+
+    images.forEach(function (img) {
+        img.addEventListener("click", function () {
+            modalImage.src = img.dataset.fullsrc;
+            modal.style.display = "flex";
+        });
+    });
+
+    modal.addEventListener("click", function () {
+        modal.style.display = "none";
+        modalImage.src = "";
+    });
+});
+</script>
 {% endblock %}

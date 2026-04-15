@@ -34,10 +34,36 @@
                 <strong>Ended:</strong> {{ trip["ended_at"] or "Still active" }}
             </p>
 
-            <p>
-                <i class="fa-solid fa-location-dot"></i>
-                <strong>Saved points:</strong> {{ trip["point_count"] }}
-            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 14px 0;">
+                <div style="background: #f8fbff; border-radius: 10px; padding: 10px;">
+                    <strong>Route Points</strong><br>
+                    {{ trip["point_count"] }}
+                </div>
+
+                <div style="background: #f8fbff; border-radius: 10px; padding: 10px;">
+                    <strong>Total Catches</strong><br>
+                    {{ trip["catch_count"] }}
+                </div>
+
+                <div style="background: #f8fbff; border-radius: 10px; padding: 10px;">
+                    <strong>Favorites</strong><br>
+                    {{ trip["favorite_catch_count"] }}
+                </div>
+
+                <div style="background: #f8fbff; border-radius: 10px; padding: 10px;">
+                    <strong>Duration</strong><br>
+                    {{ trip["trip_duration"] or "N/A" }}
+                </div>
+
+                <div style="background: #f8fbff; border-radius: 10px; padding: 10px;">
+                    <strong>Biggest Fish</strong><br>
+                    {% if trip["biggest_fish"] %}
+                        {{ trip["biggest_fish"]["display_weight"] }} — {{ trip["biggest_fish"]["species"] }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
 
             {% if trip["notes"] %}
                 <p>

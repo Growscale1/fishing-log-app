@@ -4,6 +4,63 @@
 <div class="card">
     <h1><i class="fa-solid fa-map-location-dot"></i> Catch Map</h1>
     <p class="muted">Showing catches that have saved GPS coordinates.</p>
+
+    <form method="GET" action="{{ url_for('map_page') }}">
+        <label for="search">Search</label>
+        <input type="text" id="search" name="search" value="{{ search }}" placeholder="Search species, lure, location, notes...">
+
+        <label for="species">Species</label>
+        <select id="species" name="species">
+            <option value="">All species</option>
+            {% for option in species_options %}
+                <option value="{{ option }}" {% if species == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="lure">Lure</label>
+        <select id="lure" name="lure">
+            <option value="">All lures</option>
+            {% for option in lure_options %}
+                <option value="{{ option }}" {% if lure == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="location">Location</label>
+        <select id="location" name="location">
+            <option value="">All locations</option>
+            {% for option in location_options %}
+                <option value="{{ option }}" {% if location == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="start_date">Start Date</label>
+        <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+
+        <label for="end_date">End Date</label>
+        <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+
+        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin-top: 10px; margin-bottom: 14px;">
+            <input
+                type="checkbox"
+                name="favorites_only"
+                value="1"
+                {% if favorites_only == "1" %}checked{% endif %}
+                style="width: auto; margin: 0;"
+            >
+            Favorites only
+        </label>
+
+        <div class="actions">
+            <button type="submit">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Apply Filters
+            </button>
+            <a href="{{ url_for('map_page') }}">
+                <i class="fa-solid fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+    </form>
 </div>
 
 <div class="card">
@@ -65,7 +122,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const photoHtml = catchItem.photo_path
-            ? `<a href="/uploads/${catchItem.photo_path}" target="_blank"><img src="/uploads/${catchItem.photo_path}" style="width: 100%; max-width: 120px; border-radius: 10px; margin-top: 8px; cursor: pointer;"></a>`
+            ? `<img src="/uploads/${catchItem.photo_path}" data-fullsrc="/uploads/${catchItem.photo_path}" class="map-lightbox-image" style="width: 100%; max-width: 120px; border-radius: 10px; margin-top: 8px; cursor: pointer;">`
             : "";
 
         const popupHtml = `
@@ -95,9 +152,54 @@ document.addEventListener("DOMContentLoaded", function () {
         map.fitBounds(bounds, { padding: [30, 30] });
     }
 
+        map.on("popupopen", function () {
+        const popupImages = document.querySelectorAll(".map-lightbox-image");
+
+        popupImages.forEach(function (img) {
+            img.addEventListener("click", function () {
+                const modal = document.getElementById("lightbox-modal");
+                const modalImage = document.getElementById("lightbox-modal-image");
+
+                modalImage.src = img.dataset.fullsrc;
+                modal.style.display = "flex";
+            });
+        });
+    });
+
+        
+    map.on("popupopen", function () {
+        const popupImages = document.querySelectorAll(".map-lightbox-image");
+
+        popupImages.forEach(function (img) {
+            img.addEventListener("click", function () {
+                const modal = document.getElementById("lightbox-modal");
+                const modalImage = document.getElementById("lightbox-modal-image");
+
+                modalImage.src = img.dataset.fullsrc;
+                modal.style.display = "flex";
+            });
+        });
+    });
+
     setTimeout(function () {
         map.invalidateSize();
     }, 200);
+});
+</script>
+
+<div id="lightbox-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <img id="lightbox-modal-image" src="" alt="Expanded photo" style="max-width: 95vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("lightbox-modal");
+    const modalImage = document.getElementById("lightbox-modal-image");
+
+    modal.addEventListener("click", function () {
+        modal.style.display = "none";
+        modalImage.src = "";
+    });
 });
 </script>
 {% endblock %}
