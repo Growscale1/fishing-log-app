@@ -5,7 +5,10 @@
 <div class="card">
     <form method="POST" enctype="multipart/form-data">
         <label>Photo</label>
-        <input type="file" name="photo" accept="image/*">
+        <input type="file" name="photo" accept="image/*,.dng,.raw,.arw,.cr2,.cr3,.nef,.orf,.rw2">
+        <p class="muted" style="margin-top: -8px; margin-bottom: 12px;">
+            JPG, PNG, WEBP, and supported RAW files are allowed. RAW uploads will be converted to JPG for display.
+        </p>
 
         <label>Catch Time</label>
         <input type="datetime-local" name="timestamp" id="timestamp">

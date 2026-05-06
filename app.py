@@ -6,6 +6,9 @@ import sqlite3
 from datetime import datetime, timedelta
 from collections import Counter
 import base64
+import rawpy
+import imageio.v2 as imageio
+from PIL import Image
 from openai import OpenAI
 
 app = Flask(__name__)
@@ -239,6 +242,71 @@ def get_catch_by_id(catch_id):
     conn.close()
     return catch
 
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".webp",
+    ".dng", ".raw", ".arw", ".cr2", ".cr3", ".nef", ".orf", ".rw2"
+}
+
+RAW_UPLOAD_EXTENSIONS = {
+    ".dng", ".raw", ".arw", ".cr2", ".cr3", ".nef", ".orf", ".rw2"
+}
+
+
+def save_uploaded_photo(uploaded_file):
+    if not uploaded_file or not uploaded_file.filename:
+        return "", ""
+
+    original_ext = os.path.splitext(uploaded_file.filename)[1].lower()
+
+    if original_ext not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise ValueError("Please upload a JPG, JPEG, PNG, WEBP, or supported RAW file.")
+
+    temp_input_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4().hex}{original_ext}")
+    uploaded_file.save(temp_input_path)
+
+    try:
+        if original_ext in RAW_UPLOAD_EXTENSIONS:
+            output_filename = f"{uuid.uuid4().hex}.jpg"
+            output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+
+            with rawpy.imread(temp_input_path) as raw:
+                rgb = raw.postprocess()
+
+            imageio.imwrite(output_path, rgb, quality=95)
+
+            try:
+                os.remove(temp_input_path)
+            except OSError:
+                pass
+
+            return output_filename, output_path
+
+        output_filename = f"{uuid.uuid4().hex}{original_ext}"
+        output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+
+        with Image.open(temp_input_path) as img:
+            if original_ext in {".jpg", ".jpeg"}:
+                img = img.convert("RGB")
+                img.save(output_path, format="JPEG", quality=95)
+            elif original_ext == ".png":
+                img.save(output_path, format="PNG")
+            elif original_ext == ".webp":
+                img.save(output_path, format="WEBP", quality=95)
+
+        try:
+            os.remove(temp_input_path)
+        except OSError:
+            pass
+
+        return output_filename, output_path
+
+    except Exception:
+        try:
+            if os.path.exists(temp_input_path):
+                os.remove(temp_input_path)
+        except OSError:
+            pass
+        raise
 
 def insert_catch(data):
     conn = get_connection()
@@ -989,6 +1057,9 @@ def toggle_favorite(catch_id):
 
 def detect_species_from_image(image_path):
     try:
+        if not image_path or not os.path.exists(image_path):
+            return None
+
         ext = os.path.splitext(image_path)[1].lower()
 
         mime_map = {
@@ -1050,10 +1121,16 @@ def edit_catch(catch_id):
         photo_path = catch["photo_path"]
 
         if photo and photo.filename:
-            ext = os.path.splitext(photo.filename)[1].lower()
-            saved_filename = f"{uuid.uuid4().hex}{ext}"
-            photo.save(os.path.join(UPLOAD_FOLDER, saved_filename))
-            photo_path = saved_filename
+            try:
+                saved_filename, saved_path = save_uploaded_photo(photo)
+                photo_path = saved_filename
+            except ValueError as e:
+                flash(str(e))
+                return redirect(url_for("edit_catch", catch_id=catch_id))
+            except Exception as e:
+                print(f"Photo upload/conversion failed during edit: {e}")
+                flash("Photo upload failed. If this was a RAW file, conversion may have failed.")
+                return redirect(url_for("edit_catch", catch_id=catch_id))
 
         manual_timestamp = request.form.get("timestamp", "").strip()
         if manual_timestamp:
@@ -1105,16 +1182,15 @@ def add_catch():
         saved_filename = ""
 
         if photo and photo.filename:
-            ext = os.path.splitext(photo.filename)[1].lower()
-
-            allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
-            if ext not in allowed_extensions:
-                flash("Please upload a JPG, JPEG, PNG, or WEBP image.")
+            try:
+                saved_filename, saved_path = save_uploaded_photo(photo)
+            except ValueError as e:
+                flash(str(e))
                 return redirect(url_for("add_catch"))
-
-            saved_filename = f"{uuid.uuid4().hex}{ext}"
-            saved_path = os.path.join(UPLOAD_FOLDER, saved_filename)
-            photo.save(saved_path)
+            except Exception as e:
+                print(f"Photo upload/conversion failed: {e}")
+                flash("Photo upload failed. If this was a RAW file, conversion may have failed.")
+                return redirect(url_for("add_catch"))
         else:
             saved_path = ""
 
